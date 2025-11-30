@@ -11,6 +11,8 @@ export interface Payment {
   transactionId?: string;
   createdAt: Date;
   updatedAt: Date;
+  // Added source to distinguish between player app and manual bookings
+  source: 'player-app' | 'manual';
 }
 
 interface PaymentState {
@@ -22,9 +24,14 @@ interface PaymentState {
   getPaymentsByBooking: (bookingId: string) => Payment[];
   getTotalRevenue: () => number;
   getOutstandingPayments: () => Payment[];
+  // New methods for the payments module
+  getPlayerAppPayments: () => Payment[];
+  getManualPayments: () => Payment[];
+  getPaymentsByDateRange: (startDate: Date, endDate: Date) => Payment[];
+  getPaymentsByPitch: (pitchId: string, bookings: Booking[]) => Payment[];
 }
 
-export const usePaymentStore = create<PaymentState>((set: any, get: any) => ({
+export const usePaymentStore = create<PaymentState>()((set, get) => ({
   payments: [],
   
   addPayment: (paymentData: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -35,7 +42,7 @@ export const usePaymentStore = create<PaymentState>((set: any, get: any) => ({
       updatedAt: new Date(),
     };
     
-    set((state: any) => {
+    set((state) => {
       const updatedPayments = [...state.payments, newPayment];
       // Save to AsyncStorage
       AsyncStorage.setItem('payments', JSON.stringify(updatedPayments));
@@ -44,8 +51,8 @@ export const usePaymentStore = create<PaymentState>((set: any, get: any) => ({
   },
   
   updatePayment: (id: string, updates: Partial<Payment>) => {
-    set((state: any) => {
-      const updatedPayments = state.payments.map((payment: Payment) => 
+    set((state) => {
+      const updatedPayments = state.payments.map((payment) => 
         payment.id === id ? { ...payment, ...updates, updatedAt: new Date() } : payment
       );
       // Save to AsyncStorage
@@ -55,8 +62,8 @@ export const usePaymentStore = create<PaymentState>((set: any, get: any) => ({
   },
   
   deletePayment: (id: string) => {
-    set((state: any) => {
-      const updatedPayments = state.payments.filter((payment: Payment) => payment.id !== id);
+    set((state) => {
+      const updatedPayments = state.payments.filter((payment) => payment.id !== id);
       // Save to AsyncStorage
       AsyncStorage.setItem('payments', JSON.stringify(updatedPayments));
       return { payments: updatedPayments };
@@ -71,6 +78,8 @@ export const usePaymentStore = create<PaymentState>((set: any, get: any) => ({
           ...payment,
           createdAt: new Date(payment.createdAt),
           updatedAt: new Date(payment.updatedAt),
+          // Set default source if not present
+          source: payment.source || 'manual',
         }));
         set({ payments: parsedPayments });
       }
@@ -81,18 +90,49 @@ export const usePaymentStore = create<PaymentState>((set: any, get: any) => ({
   
   getPaymentsByBooking: (bookingId: string) => {
     const { payments } = get();
-    return payments.filter((payment: Payment) => payment.bookingId === bookingId);
+    return payments.filter((payment) => payment.bookingId === bookingId);
   },
   
   getTotalRevenue: () => {
     const { payments } = get();
+    // Only count paid player app payments (after 10% fee)
     return payments
-      .filter((payment: Payment) => payment.status === 'paid')
-      .reduce((total: number, payment: Payment) => total + payment.amount, 0);
+      .filter((payment) => payment.status === 'paid' && payment.source === 'player-app')
+      .reduce((total, payment) => total + (payment.amount * 0.9), 0);
   },
   
   getOutstandingPayments: () => {
     const { payments } = get();
-    return payments.filter((payment: Payment) => payment.status === 'pending');
+    return payments.filter((payment) => payment.status === 'pending');
+  },
+  
+  // New methods for the payments module
+  getPlayerAppPayments: () => {
+    const { payments } = get();
+    return payments.filter((payment) => payment.source === 'player-app');
+  },
+  
+  getManualPayments: () => {
+    const { payments } = get();
+    return payments.filter((payment) => payment.source === 'manual');
+  },
+  
+  getPaymentsByDateRange: (startDate: Date, endDate: Date) => {
+    const { payments } = get();
+    return payments.filter((payment) => {
+      const paymentDate = new Date(payment.createdAt);
+      return paymentDate >= startDate && paymentDate <= endDate;
+    });
+  },
+  
+  getPaymentsByPitch: (pitchId: string, bookings: Booking[]) => {
+    const { payments } = get();
+    // Filter bookings by pitchId and get their IDs
+    const bookingIds = bookings
+      .filter(booking => booking.pitchId === pitchId)
+      .map(booking => booking.id);
+    
+    // Return payments that match those booking IDs
+    return payments.filter(payment => bookingIds.includes(payment.bookingId));
   },
 }));

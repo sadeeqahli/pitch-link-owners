@@ -3,6 +3,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { usePitchStore } from '@/store/usePitchStore';
 import { useBookingStore } from '@/store/useBookingStore';
 import { usePaymentStore } from '@/store/usePaymentStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const useInitializeApp = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -14,7 +15,22 @@ export const useInitializeApp = () => {
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Load all stored data
+        // Check if we've already cleared the sample data
+        const hasClearedSampleData = await AsyncStorage.getItem('hasClearedSampleData');
+        
+        if (!hasClearedSampleData) {
+          // Clear existing sample/fake data
+          await Promise.all([
+            AsyncStorage.removeItem('pitches'),
+            AsyncStorage.removeItem('bookings'),
+            AsyncStorage.removeItem('payments'),
+          ]);
+          
+          // Mark that we've cleared the sample data
+          await AsyncStorage.setItem('hasClearedSampleData', 'true');
+        }
+        
+        // Load all stored data (which should now be empty)
         await Promise.all([
           loadStoredAuth(),
           loadPitches(),

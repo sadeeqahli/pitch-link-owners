@@ -1,14 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { LogOut, Key, User, Settings } from 'lucide-react-native';
+import { User as UserType } from '@/store/useAuthStore';
 
 export default function ProfileScreen() {
-  const user = useAuthStore((state: any) => state.user);
-  const logout = useAuthStore((state: any) => state.logout);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   const handleLogout = () => {
     logout();
@@ -38,41 +38,46 @@ export default function ProfileScreen() {
 
         {/* Account Options */}
         <View style={styles.optionsContainer}>
-          <Card style={styles.optionCard}>
-            <CardContent style={styles.optionContent}>
-              <View style={styles.optionLeft}>
-                <User color="#00FF88" size={20} />
-                <Text style={styles.optionText}>Account Information</Text>
-              </View>
-            </CardContent>
-          </Card>
+          <TouchableOpacity style={styles.optionCard}>
+            <Card style={styles.card}>
+              <CardContent style={styles.optionContent}>
+                <View style={styles.optionLeft}>
+                  <User color="#00FF88" size={20} />
+                  <Text style={styles.optionText}>Account Information</Text>
+                </View>
+              </CardContent>
+            </Card>
+          </TouchableOpacity>
 
-          <Card style={styles.optionCard}>
-            <CardContent style={styles.optionContent}>
-              <View style={styles.optionLeft}>
-                <Key color="#00FF88" size={20} />
-                <Text style={styles.optionText}>Change Password</Text>
-              </View>
-            </CardContent>
-          </Card>
+          <TouchableOpacity style={styles.optionCard}>
+            <Card style={styles.card}>
+              <CardContent style={styles.optionContent}>
+                <View style={styles.optionLeft}>
+                  <Key color="#00FF88" size={20} />
+                  <Text style={styles.optionText}>Change Password</Text>
+                </View>
+              </CardContent>
+            </Card>
+          </TouchableOpacity>
 
-          <Card style={styles.optionCard}>
-            <CardContent style={styles.optionContent}>
-              <View style={styles.optionLeft}>
-                <Settings color="#00FF88" size={20} />
-                <Text style={styles.optionText}>App Settings</Text>
-              </View>
-            </CardContent>
-          </Card>
+          <TouchableOpacity style={styles.optionCard}>
+            <Card style={styles.card}>
+              <CardContent style={styles.optionContent}>
+                <View style={styles.optionLeft}>
+                  <Settings color="#00FF88" size={20} />
+                  <Text style={styles.optionText}>App Settings</Text>
+                </View>
+              </CardContent>
+            </Card>
+          </TouchableOpacity>
 
-          <Button 
-            style={styles.logoutButton} 
-            variant="outline"
+          <TouchableOpacity 
+            style={styles.logoutButton}
             onPress={handleLogout}
           >
             <LogOut color="#FF4444" size={20} />
             <Text style={styles.logoutText}>Sign Out</Text>
-          </Button>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -98,6 +103,9 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     margin: 16,
+    backgroundColor: '#1E1E1E',
+  },
+  card: {
     backgroundColor: '#1E1E1E',
   },
   profileContent: {
@@ -135,7 +143,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   optionCard: {
-    backgroundColor: '#1E1E1E',
+    // TouchableOpacity wrapper
   },
   optionContent: {
     flexDirection: 'row',
@@ -156,7 +164,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     height: 50,
+    borderRadius: 8,
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
     borderColor: '#FF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   logoutText: {
     color: '#FF4444',

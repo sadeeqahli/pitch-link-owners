@@ -8,8 +8,21 @@ export interface Pitch {
   pricePerHour: number;
   imageUrl?: string;
   status: 'available' | 'booked' | 'maintenance';
+  amenities: string[];
+  size: string; // e.g., "5-a-side", "7-a-side", "11-a-side"
+  surfaceType: 'grass' | 'artificial' | 'concrete' | 'other';
+  location: string;
   createdAt: Date;
   updatedAt: Date;
+  // Availability features
+  availability?: {
+    [day: string]: {
+      available: boolean;
+      startTime: string;
+      endTime: string;
+    };
+  };
+  unavailableDates?: string[]; // ISO date strings
 }
 
 interface PitchState {
@@ -19,9 +32,15 @@ interface PitchState {
   deletePitch: (id: string) => void;
   loadPitches: () => Promise<void>;
   savePitches: () => Promise<void>;
+  getPitchesByStatus: (status: Pitch['status']) => Pitch[];
+  searchPitches: (query: string) => Pitch[];
+  // New methods for availability
+  updatePitchAvailability: (id: string, availability: Pitch['availability']) => void;
+  markDateAsUnavailable: (id: string, date: string) => void;
+  markDateAsAvailable: (id: string, date: string) => void;
 }
 
-export const usePitchStore = create<PitchState>((set: any, get: any) => ({
+export const usePitchStore = create<PitchState>()((set, get) => ({
   pitches: [],
   
   addPitch: (pitchData: Omit<Pitch, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -32,7 +51,7 @@ export const usePitchStore = create<PitchState>((set: any, get: any) => ({
       updatedAt: new Date(),
     };
     
-    set((state: any) => {
+    set((state) => {
       const updatedPitches = [...state.pitches, newPitch];
       // Save to AsyncStorage
       AsyncStorage.setItem('pitches', JSON.stringify(updatedPitches));
@@ -41,8 +60,8 @@ export const usePitchStore = create<PitchState>((set: any, get: any) => ({
   },
   
   updatePitch: (id: string, updates: Partial<Pitch>) => {
-    set((state: any) => {
-      const updatedPitches = state.pitches.map((pitch: Pitch) => 
+    set((state) => {
+      const updatedPitches = state.pitches.map((pitch) => 
         pitch.id === id ? { ...pitch, ...updates, updatedAt: new Date() } : pitch
       );
       // Save to AsyncStorage
@@ -52,8 +71,8 @@ export const usePitchStore = create<PitchState>((set: any, get: any) => ({
   },
   
   deletePitch: (id: string) => {
-    set((state: any) => {
-      const updatedPitches = state.pitches.filter((pitch: Pitch) => pitch.id !== id);
+    set((state) => {
+      const updatedPitches = state.pitches.filter((pitch) => pitch.id !== id);
       // Save to AsyncStorage
       AsyncStorage.setItem('pitches', JSON.stringify(updatedPitches));
       return { pitches: updatedPitches };
@@ -66,8 +85,15 @@ export const usePitchStore = create<PitchState>((set: any, get: any) => ({
       if (storedPitches) {
         const parsedPitches = JSON.parse(storedPitches).map((pitch: any) => ({
           ...pitch,
+          // Ensure all required fields are present with default values if missing
+          amenities: pitch.amenities || [],
+          size: pitch.size || '',
+          surfaceType: pitch.surfaceType || 'grass',
+          location: pitch.location || '',
           createdAt: new Date(pitch.createdAt),
           updatedAt: new Date(pitch.updatedAt),
+          availability: pitch.availability || {},
+          unavailableDates: pitch.unavailableDates || [],
         }));
         set({ pitches: parsedPitches });
       }
@@ -83,5 +109,67 @@ export const usePitchStore = create<PitchState>((set: any, get: any) => ({
     } catch (error) {
       console.log('Error saving pitches:', error);
     }
+  },
+  
+  getPitchesByStatus: (status: Pitch['status']) => {
+    const { pitches } = get();
+    return pitches.filter(pitch => pitch.status === status);
+  },
+  
+  searchPitches: (query: string) => {
+    const { pitches } = get();
+    if (!query) return pitches;
+    
+    const lowerQuery = query.toLowerCase();
+    return pitches.filter(pitch => 
+      pitch.name.toLowerCase().includes(lowerQuery) ||
+      pitch.description.toLowerCase().includes(lowerQuery) ||
+      pitch.location.toLowerCase().includes(lowerQuery)
+    );
+  },
+  
+  // New methods for availability
+  updatePitchAvailability: (id: string, availability: Pitch['availability']) => {
+    set((state) => {
+      const updatedPitches = state.pitches.map((pitch) => 
+        pitch.id === id ? { ...pitch, availability, updatedAt: new Date() } : pitch
+      );
+      // Save to AsyncStorage
+      AsyncStorage.setItem('pitches', JSON.stringify(updatedPitches));
+      return { pitches: updatedPitches };
+    });
+  },
+  
+  markDateAsUnavailable: (id: string, date: string) => {
+    set((state) => {
+      const updatedPitches = state.pitches.map((pitch) => {
+        if (pitch.id === id) {
+          const unavailableDates = pitch.unavailableDates || [];
+          if (!unavailableDates.includes(date)) {
+            unavailableDates.push(date);
+          }
+          return { ...pitch, unavailableDates, updatedAt: new Date() };
+        }
+        return pitch;
+      });
+      // Save to AsyncStorage
+      AsyncStorage.setItem('pitches', JSON.stringify(updatedPitches));
+      return { pitches: updatedPitches };
+    });
+  },
+  
+  markDateAsAvailable: (id: string, date: string) => {
+    set((state) => {
+      const updatedPitches = state.pitches.map((pitch) => {
+        if (pitch.id === id) {
+          const unavailableDates = (pitch.unavailableDates || []).filter(d => d !== date);
+          return { ...pitch, unavailableDates, updatedAt: new Date() };
+        }
+        return pitch;
+      });
+      // Save to AsyncStorage
+      AsyncStorage.setItem('pitches', JSON.stringify(updatedPitches));
+      return { pitches: updatedPitches };
+    });
   },
 }));

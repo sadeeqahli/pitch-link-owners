@@ -1,25 +1,13 @@
 import { Image } from 'expo-image';
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PitchesIndexScreen from '@/app/pitches/index';
 
 export default function PitchesScreen() {
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Pitches</Text>
-        <Text style={styles.subtitle}>Manage your football pitches</Text>
-      </View>
-      
-      <View style={styles.content}>
-        <Text style={styles.welcomeText}>Pitches Management</Text>
-        <Text style={styles.description}>
-          View, add, edit, and delete your football pitches here.
-        </Text>
-      </View>
-    </SafeAreaView>
-  );
+  return <PitchesIndexScreen />;
 }
+
+import { View, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const styles = StyleSheet.create({
   container: {

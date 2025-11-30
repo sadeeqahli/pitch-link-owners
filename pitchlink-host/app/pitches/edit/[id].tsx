@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Alert, TouchableOpacity, Switch, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { usePitchStore } from '@/store/usePitchStore';
 import { Pitch } from '@/store/usePitchStore';
 
 // Define facility types
 type Facility = 'lights' | 'parking' | 'seating' | 'dressingRoom' | 'water' | 'turfType';
 
-export default function AddPitchScreen() {
+export default function EditPitchScreen() {
   const router = useRouter();
-  const addPitch = usePitchStore((state) => state.addPitch);
+  const { id } = useLocalSearchParams();
+  const pitches = usePitchStore((state) => state.pitches);
+  const updatePitch = usePitchStore((state) => state.updatePitch);
+  
+  const pitch = pitches.find((p) => p.id === id);
   
   // Multi-step form state
   const [currentStep, setCurrentStep] = useState(1);
@@ -55,6 +59,43 @@ export default function AddPitchScreen() {
   // Step 6: Preview
   const [loading, setLoading] = useState(false);
 
+  // Initialize form with existing pitch data
+  useEffect(() => {
+    if (pitch) {
+      setName(pitch.name);
+      setDescription(pitch.description);
+      setLocation(pitch.location);
+      setPricePerHour(pitch.pricePerHour.toString());
+      
+      // Parse amenities to facilities
+      const initialFacilities: Record<Facility, boolean> = {
+        lights: false,
+        parking: false,
+        seating: false,
+        dressingRoom: false,
+        water: false,
+        turfType: false,
+      };
+      
+      pitch.amenities.forEach(amenity => {
+        const lowerAmenity = amenity.toLowerCase();
+        if (lowerAmenity.includes('lights')) initialFacilities.lights = true;
+        if (lowerAmenity.includes('parking')) initialFacilities.parking = true;
+        if (lowerAmenity.includes('seating')) initialFacilities.seating = true;
+        if (lowerAmenity.includes('dressing')) initialFacilities.dressingRoom = true;
+        if (lowerAmenity.includes('water')) initialFacilities.water = true;
+        
+        if (lowerAmenity.includes('turf')) {
+          if (lowerAmenity.includes('artificial')) setTurfType('artificial');
+          else if (lowerAmenity.includes('hybrid')) setTurfType('hybrid');
+          else setTurfType('natural');
+        }
+      });
+      
+      setFacilities(initialFacilities);
+    }
+  }, [pitch]);
+
   // Navigation functions
   const nextStep = () => {
     if (currentStep < totalSteps) {
@@ -96,20 +137,20 @@ export default function AddPitchScreen() {
         amenities.push(`Turf: ${turfType}`);
       }
       
-      addPitch({
+      updatePitch(pitch!.id, {
         name,
         description,
         pricePerHour: price,
-        size: 'Standard', // Default size
-        surfaceType: turfType,
         location,
         amenities,
-        status: 'available',
+        surfaceType: turfType,
+        size: pitch?.size || 'Standard',
+        status: pitch?.status || 'available',
       });
       
       router.back();
     } catch (error) {
-      Alert.alert('Error', 'Failed to add pitch');
+      Alert.alert('Error', 'Failed to update pitch');
     } finally {
       setLoading(false);
     }
@@ -309,6 +350,23 @@ export default function AddPitchScreen() {
                 </View>
               ))}
             </ScrollView>
+            
+            <View style={styles.maintenanceContainer}>
+              <Text style={styles.maintenanceLabel}>Maintenance Mode</Text>
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchLabel}>Auto close pitch for maintenance</Text>
+                <Switch
+                  value={pitch?.status === 'maintenance'}
+                  onValueChange={(value) => {
+                    updatePitch(pitch!.id, {
+                      status: value ? 'maintenance' : 'available'
+                    });
+                  }}
+                  trackColor={{ false: '#333333', true: '#00FF88' }}
+                  thumbColor={pitch?.status === 'maintenance' ? '#FFFFFF' : '#888888'}
+                />
+              </View>
+            </View>
           </View>
         );
       
@@ -423,7 +481,7 @@ export default function AddPitchScreen() {
       case 6:
         return (
           <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Preview & Submit</Text>
+            <Text style={styles.stepTitle}>Preview</Text>
             
             <View style={styles.previewCard}>
               <Text style={styles.previewTitle}>{name || 'Pitch Name'}</Text>
@@ -442,11 +500,16 @@ export default function AddPitchScreen() {
               </View>
             </View>
             
-            <View style={styles.termsContainer}>
-              <Text style={styles.termsText}>
-                By submitting, you agree that the information provided is accurate and that your pitch 
-                will be reviewed by our team before going live.
-              </Text>
+            <View style={styles.statusContainer}>
+              <Text style={styles.statusLabel}>Current Status</Text>
+              <View style={[
+                styles.statusBadge,
+                pitch?.status === 'available' && styles.statusAvailable,
+                pitch?.status === 'booked' && styles.statusBooked,
+                pitch?.status === 'maintenance' && styles.statusMaintenance,
+              ]}>
+                <Text style={styles.statusText}>{pitch?.status || 'available'}</Text>
+              </View>
             </View>
           </View>
         );
@@ -482,17 +545,33 @@ export default function AddPitchScreen() {
           disabled={loading}
         >
           <Text style={styles.submitButtonText}>
-            {loading ? 'Submitting...' : 'Submit for Verification'}
+            {loading ? 'Saving...' : 'Save Changes'}
           </Text>
         </TouchableOpacity>
       )}
     </View>
   );
 
+  if (!pitch) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Pitch not found</Text>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Add New Pitch</Text>
+        <Text style={styles.title}>Edit Pitch</Text>
         <Text style={styles.stepInfo}>Step {currentStep} of {totalSteps}</Text>
       </View>
       
@@ -518,6 +597,12 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
     paddingBottom: 100,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
   },
   header: {
     flexDirection: 'row',
@@ -625,9 +710,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '600',
+    flex: 1,
+    marginRight: 10,
   },
   availabilityScroll: {
-    maxHeight: 400,
+    maxHeight: 350,
   },
   dayContainer: {
     marginBottom: 20,
@@ -685,6 +772,18 @@ const styles = StyleSheet.create({
   },
   fullyBookedTextActive: {
     color: '#FF4444',
+  },
+  maintenanceContainer: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+  },
+  maintenanceLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 10,
   },
   facilitiesGrid: {
     flexDirection: 'row',
@@ -836,17 +935,38 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  termsContainer: {
-    marginTop: 20,
+  statusContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 16,
-    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+    backgroundColor: '#1E1E1E',
     borderRadius: 8,
   },
-  termsText: {
+  statusLabel: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  statusAvailable: {
+    backgroundColor: 'rgba(0, 255, 136, 0.2)',
+  },
+  statusBooked: {
+    backgroundColor: 'rgba(255, 68, 68, 0.2)',
+  },
+  statusMaintenance: {
+    backgroundColor: 'rgba(255, 165, 0, 0.2)',
+  },
+  statusText: {
     fontSize: 14,
-    color: '#CCCCCC',
-    textAlign: 'center',
-    lineHeight: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textTransform: 'capitalize',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -886,5 +1006,17 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: '600',
     fontSize: 16,
+  },
+  backButton: {
+    height: 44,
+    paddingHorizontal: 24,
+    backgroundColor: '#00FF88',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#000000',
+    fontWeight: '600',
   },
 });

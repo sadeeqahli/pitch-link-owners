@@ -13,13 +13,15 @@
       "backgroundColor": "#0A0A0A"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pitchlink.host"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0A0A0A"
-      }
+      },
+      "package": "com.pitchlink.host"
     },
     "web": {
       "bundler": "metro",

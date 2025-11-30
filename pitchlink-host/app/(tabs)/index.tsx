@@ -1,24 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import DashboardScreen from '@/app/dashboard/index';
 
 export default function HomeScreen() {
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Dashboard</Text>
-        <Text style={styles.subtitle}>Welcome back! Here's your overview.</Text>
-      </View>
-      
-      <View style={styles.content}>
-        <Text style={styles.welcomeText}>Dashboard Content Coming Soon</Text>
-        <Text style={styles.description}>
-          This will show key metrics, recent bookings, and quick actions.
-        </Text>
-      </View>
-    </SafeAreaView>
-  );
+  return <DashboardScreen />;
 }
+
+import { View, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const styles = StyleSheet.create({
   container: {
