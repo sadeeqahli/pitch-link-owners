@@ -7,7 +7,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useInitializeApp } from '@/hooks/useInitializeApp';
 
-export const unstable_settings = {};
+export const unstable_settings = {
+  // Ensure that reloading on `/modal` keeps a back button present.
+};
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

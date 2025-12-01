@@ -285,14 +285,6 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.settingsRow}>
               <View style={styles.settingsLeft}>
                 <Settings color="#00FF88" size={20} />
-                <Text style={styles.settingsText}>Notifications</Text>
-              </View>
-              <Text style={styles.settingsArrow}>›</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.settingsRow}>
-              <View style={styles.settingsLeft}>
-                <Settings color="#00FF88" size={20} />
                 <Text style={styles.settingsText}>Business Settings</Text>
               </View>
               <Text style={styles.settingsArrow}>›</Text>
