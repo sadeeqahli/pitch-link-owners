@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { usePitchStore } from '@/store/usePitchStore';
@@ -13,28 +13,21 @@ export default function AddBookingScreen() {
   const pitches = usePitchStore((state) => state.pitches);
   const addBooking = useBookingStore((state) => state.addBooking);
   
-  // Multi-step form state
-  const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 5;
-  
-  // Step 1: Select Pitch
+  // Form state
   const [selectedPitchId, setSelectedPitchId] = useState<string | null>(null);
-  
-  // Step 2: Choose Date & Time
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState('09:00');
   const [duration, setDuration] = useState(1); // in hours
-  
-  // Step 3: Player Information
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  
-  // Step 4: Payment Method
   const [paymentType, setPaymentType] = useState<'full' | 'half' | 'later' | 'offline' | 'transfer'>('later');
-  
-  // Step 5: Review & Confirm
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Dropdown states
+  const [showPitchDropdown, setShowPitchDropdown] = useState(false);
+  const [showTimeDropdown, setShowTimeDropdown] = useState(false);
+  const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
   
   // Get available time slots for the selected pitch
   const getTimeSlots = () => {
@@ -42,9 +35,6 @@ export default function AddBookingScreen() {
     for (let hour = 8; hour <= 22; hour++) {
       const time = `${hour.toString().padStart(2, '0')}:00`;
       slots.push(time);
-      if (hour < 22) {
-        slots.push(`${hour.toString().padStart(2, '0')}:30`);
-      }
     }
     return slots;
   };
@@ -53,37 +43,25 @@ export default function AddBookingScreen() {
   const checkForConflicts = () => {
     if (!selectedPitchId) return false;
     
-    const bookings = useBookingStore.getState().bookings;
-    const selectedPitchBookings = bookings.filter(booking => booking.pitchId === selectedPitchId);
+    // Calculate end time
+    const [startHours, startMinutes] = selectedTime.split(':').map(Number);
+    const endTime = new Date(selectedDate);
+    endTime.setHours(startHours + duration, startMinutes, 0, 0);
+    const endTimeString = `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`;
     
-    const newStartTime = selectedTime;
-    const [startHours, startMinutes] = newStartTime.split(':').map(Number);
-    const newStartDateTime = new Date(selectedDate);
-    newStartDateTime.setHours(startHours, startMinutes, 0, 0);
-    
-    const newEndTime = new Date(newStartDateTime);
-    newEndTime.setHours(newEndTime.getHours() + duration);
-    
-    return selectedPitchBookings.some(booking => {
-      const existingStart = new Date(booking.bookingDate);
-      const [existingStartHours, existingStartMinutes] = booking.startTime.split(':').map(Number);
-      existingStart.setHours(existingStartHours, existingStartMinutes, 0, 0);
-      
-      const existingEnd = new Date(booking.bookingDate);
-      const [existingEndHours, existingEndMinutes] = booking.endTime.split(':').map(Number);
-      existingEnd.setHours(existingEndHours, existingEndMinutes, 0, 0);
-      
-      return (
-        existingStart < newEndTime && 
-        existingEnd > newStartDateTime
-      );
-    });
+    const bookings = useBookingStore.getState();
+    return bookings.checkForConflicts(selectedPitchId, selectedTime, endTimeString, selectedDate);
   };
-  
+
   // Handle form submission
   const handleSubmit = () => {
-    if (!selectedPitchId || !customerName) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    if (!selectedPitchId) {
+      Alert.alert('Error', 'Please select a pitch');
+      return;
+    }
+    
+    if (!customerName.trim()) {
+      Alert.alert('Error', 'Please enter customer name');
       return;
     }
     
@@ -160,392 +138,246 @@ export default function AddBookingScreen() {
     }
   };
   
-  // Navigation functions
+  // Navigation functions (simplified for single step)
   const nextStep = () => {
-    if (currentStep === 2 && checkForConflicts()) {
-      Alert.alert('Conflict', 'This slot is already booked. Choose another time.');
-      return;
-    }
-    
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-    }
+    // Not used in single step flow
   };
   
   const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
+    // Not used in single step flow
   };
-  
-  // Render step indicator
-  const renderStepIndicator = () => (
-    <View style={styles.stepIndicator}>
-      {Array.from({ length: totalSteps }).map((_, index) => (
-        <View key={index} style={styles.stepContainer}>
-          <View style={[
-            styles.stepCircle,
-            currentStep === index + 1 && styles.activeStepCircle
-          ]}>
-            <Text style={[
-              styles.stepText,
-              currentStep === index + 1 && styles.activeStepText
-            ]}>
-              {index + 1}
-            </Text>
-          </View>
-          {index < totalSteps - 1 && (
-            <View style={[
-              styles.stepLine,
-              currentStep > index + 1 && styles.completedStepLine
-            ]} />
-          )}
-        </View>
-      ))}
-    </View>
-  );
   
   // Render step content
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Select Pitch</Text>
-            <Text style={styles.stepSubtitle}>Choose from your listed pitches</Text>
-            
-            <View style={styles.pitchesList}>
-              {pitches.map((pitch) => (
-                <TouchableOpacity
-                  key={pitch.id}
-                  style={[
-                    styles.pitchCard,
-                    selectedPitchId === pitch.id && styles.selectedPitchCard
-                  ]}
-                  onPress={() => setSelectedPitchId(pitch.id)}
-                >
-                  <View style={styles.pitchInfo}>
-                    <Text style={styles.pitchName}>{pitch.name}</Text>
-                    <Text style={styles.pitchLocation}>{pitch.location}</Text>
-                  </View>
-                  <View style={styles.pitchPrice}>
-                    <Text style={styles.priceText}>₦{pitch.pricePerHour.toFixed(2)}/hr</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+    return (
+      <View style={styles.stepContent}>
+        <Text style={styles.stepTitle}>Create New Booking</Text>
+        <Text style={styles.stepSubtitle}>Fill in all booking details</Text>
+        
+        <ScrollView style={styles.singleFormScrollView}>
+          {/* Pitch Selection */}
+          <Card style={styles.card}>
+            <CardContent style={styles.cardContent}>
+              <View style={styles.sectionHeader}>
+                <IconSymbol name="sportscourt.fill" size={20} color="#00FF88" />
+                <Text style={styles.sectionTitle}>Select Pitch</Text>
+              </View>
               
-              {pitches.length === 0 && (
-                <View style={styles.emptyPitches}>
-                  <Text style={styles.emptyText}>No pitches available</Text>
-                  <Text style={styles.emptySubtext}>Add a pitch first to create bookings</Text>
-                  <TouchableOpacity 
-                    style={styles.addButton}
-                    onPress={() => router.push('/pitches/add')}
-                  >
-                    <Text style={styles.addButtonText}>Add Pitch</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          </View>
-        );
-      
-      case 2:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Choose Date & Time</Text>
-            <Text style={styles.stepSubtitle}>Select when the booking will take place</Text>
-            
-            <Card style={styles.card}>
-              <CardContent style={styles.cardContent}>
-                <View style={styles.dateSelector}>
-                  <TouchableOpacity 
-                    style={styles.dateButton}
-                    onPress={() => {
-                      const newDate = new Date(selectedDate);
-                      newDate.setDate(newDate.getDate() - 1);
-                      setSelectedDate(newDate);
-                    }}
-                  >
-                    <IconSymbol name="chevron.left" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
-                  
-                  <View style={styles.dateDisplay}>
-                    <Text style={styles.dateText}>
-                      {selectedDate.toLocaleDateString('en-US', { 
-                        weekday: 'short', 
-                        month: 'short', 
-                        day: 'numeric' 
-                      })}
-                    </Text>
-                  </View>
-                  
-                  <TouchableOpacity 
-                    style={styles.dateButton}
-                    onPress={() => {
-                      const newDate = new Date(selectedDate);
-                      newDate.setDate(newDate.getDate() + 1);
-                      setSelectedDate(newDate);
-                    }}
-                  >
-                    <IconSymbol name="chevron.right" size={20} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={styles.timeContainer}>
-                  <Text style={styles.label}>Start Time</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeSlots}>
-                    {getTimeSlots().map((time) => (
-                      <TouchableOpacity
-                        key={time}
-                        style={[
-                          styles.timeSlot,
-                          selectedTime === time && styles.selectedTimeSlot
-                        ]}
-                        onPress={() => setSelectedTime(time)}
-                      >
-                        <Text style={[
-                          styles.timeText,
-                          selectedTime === time && styles.selectedTimeText
-                        ]}>
-                          {time}
-                        </Text>
+              <TouchableOpacity 
+                style={styles.dropdownButton}
+                onPress={() => setShowPitchDropdown(true)}
+              >
+                <Text style={styles.dropdownButtonText}>
+                  {selectedPitchId 
+                    ? pitches.find(p => p.id === selectedPitchId)?.name 
+                    : 'Select a pitch'}
+                </Text>
+                <IconSymbol name="chevron.down" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              
+              {/* Pitch Dropdown Modal */}
+              <Modal
+                visible={showPitchDropdown}
+                transparent={true}
+                animationType="slide"
+              >
+                <View style={styles.modalOverlay}>
+                  <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Select Pitch</Text>
+                      <TouchableOpacity onPress={() => setShowPitchDropdown(false)}>
+                        <IconSymbol name="xmark" size={24} color="#FFFFFF" />
                       </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-                
-                <View style={styles.durationContainer}>
-                  <Text style={styles.label}>Duration</Text>
-                  <View style={styles.durationOptions}>
-                    {[1, 2].map((hours) => (
-                      <TouchableOpacity
-                        key={hours}
-                        style={[
-                          styles.durationButton,
-                          duration === hours && styles.selectedDurationButton
-                        ]}
-                        onPress={() => setDuration(hours)}
-                      >
-                        <Text style={[
-                          styles.durationText,
-                          duration === hours && styles.selectedDurationText
-                        ]}>
-                          {hours} hour{hours > 1 ? 's' : ''}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                    </View>
+                    
+                    <ScrollView>
+                      {pitches.map((pitch) => (
+                        <TouchableOpacity
+                          key={pitch.id}
+                          style={styles.modalOption}
+                          onPress={() => {
+                            setSelectedPitchId(pitch.id);
+                            setShowPitchDropdown(false);
+                          }}
+                        >
+                          <Text style={styles.modalOptionText}>{pitch.name}</Text>
+                          <Text style={styles.modalOptionSubtext}>{pitch.location}</Text>
+                        </TouchableOpacity>
+                      ))}
+                      
+                      {pitches.length === 0 && (
+                        <View style={styles.emptyPitches}>
+                          <Text style={styles.emptyText}>No pitches available</Text>
+                          <Text style={styles.emptySubtext}>Add a pitch first to create bookings</Text>
+                          <TouchableOpacity 
+                            style={styles.addButton}
+                            onPress={() => {
+                              setShowPitchDropdown(false);
+                              router.push('/pitches/add');
+                            }}
+                          >
+                            <Text style={styles.addButtonText}>Add Pitch</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </ScrollView>
                   </View>
                 </View>
-              </CardContent>
-            </Card>
-          </View>
-        );
-      
-      case 3:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Player Information</Text>
-            <Text style={styles.stepSubtitle}>Enter customer details</Text>
-            
-            <Card style={styles.card}>
-              <CardContent style={styles.cardContent}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Full Name *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter customer name"
-                    placeholderTextColor="#888888"
-                    value={customerName}
-                    onChangeText={setCustomerName}
-                  />
-                </View>
-                
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Email Address</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter email (optional)"
-                    placeholderTextColor="#888888"
-                    value={customerEmail}
-                    onChangeText={setCustomerEmail}
-                    keyboardType="email-address"
-                  />
-                </View>
-                
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Phone Number</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter phone number"
-                    placeholderTextColor="#888888"
-                    value={customerPhone}
-                    onChangeText={setCustomerPhone}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              </CardContent>
-            </Card>
-          </View>
-        );
-      
-      case 4:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Payment Method</Text>
-            <Text style={styles.stepSubtitle}>Choose how the booking will be paid</Text>
-            
-            <View style={styles.paymentOptions}>
-              {[
-                { id: 'full', label: 'Full Payment', description: 'Complete payment now' },
-                { id: 'half', label: 'Half Payment', description: '50% deposit now' },
-                { id: 'later', label: 'Pay Later', description: 'Customer pays at pitch' },
-                { id: 'offline', label: 'Paid Offline', description: 'Payment collected in person' },
-                { id: 'transfer', label: 'Transfer Received', description: 'Bank transfer confirmed' }
-              ].map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.paymentOption,
-                    paymentType === option.id && styles.selectedPaymentOption
-                  ]}
-                  onPress={() => setPaymentType(option.id as any)}
-                >
-                  <View style={styles.paymentOptionContent}>
-                    <Text style={styles.paymentOptionLabel}>{option.label}</Text>
-                    <Text style={styles.paymentOptionDescription}>{option.description}</Text>
-                  </View>
-                  {paymentType === option.id && (
-                    <IconSymbol name="checkmark.circle.fill" size={24} color="#00FF88" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        );
-      
-      case 5:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Review & Confirm</Text>
-            <Text style={styles.stepSubtitle}>Check all details before confirming</Text>
-            
-            <Card style={styles.card}>
-              <CardContent style={styles.cardContent}>
-                <Text style={styles.sectionTitle}>Booking Details</Text>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Pitch:</Text>
-                  <Text style={styles.detailValue}>
-                    {pitches.find(p => p.id === selectedPitchId)?.name || 'Unknown'}
-                  </Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Date:</Text>
-                  <Text style={styles.detailValue}>
-                    {selectedDate.toLocaleDateString()}
-                  </Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Time:</Text>
-                  <Text style={styles.detailValue}>
-                    {selectedTime} - {(() => {
-                      const [hours, minutes] = selectedTime.split(':').map(Number);
-                      const endTime = new Date(selectedDate);
-                      endTime.setHours(hours + duration, minutes, 0, 0);
-                      return `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`;
-                    })()}
-                  </Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Duration:</Text>
-                  <Text style={styles.detailValue}>{duration} hour{duration > 1 ? 's' : ''}</Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Total Amount:</Text>
-                  <Text style={styles.detailValue}>₦{(() => {
-                    const pitch = pitches.find(p => p.id === selectedPitchId);
-                    return pitch ? (pitch.pricePerHour * duration).toFixed(2) : '0.00';
-                  })()}</Text>
-                </View>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Payment Type:</Text>
-                  <Text style={styles.detailValue}>
-                    {paymentType === 'full' && 'Full Payment'}
-                    {paymentType === 'half' && 'Half Payment'}
-                    {paymentType === 'later' && 'Pay Later'}
-                    {paymentType === 'offline' && 'Paid Offline'}
-                    {paymentType === 'transfer' && 'Transfer Received'}
-                  </Text>
-                </View>
-                
-                <View style={styles.divider} />
-                
+              </Modal>
+            </CardContent>
+          </Card>
+          
+          {/* Customer Name */}
+          <Card style={styles.card}>
+            <CardContent style={styles.cardContent}>
+              <View style={styles.sectionHeader}>
+                <IconSymbol name="person.fill" size={20} color="#00FF88" />
                 <Text style={styles.sectionTitle}>Customer Information</Text>
-                
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Name:</Text>
-                  <Text style={styles.detailValue}>{customerName}</Text>
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Full Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter customer name"
+                  placeholderTextColor="#888888"
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                />
+              </View>
+            </CardContent>
+          </Card>
+          
+          {/* Time Slot Selection */}
+          <Card style={styles.card}>
+            <CardContent style={styles.cardContent}>
+              <View style={styles.sectionHeader}>
+                <IconSymbol name="clock.fill" size={20} color="#00FF88" />
+                <Text style={styles.sectionTitle}>Time Slot</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.dropdownButton}
+                onPress={() => setShowTimeDropdown(true)}
+              >
+                <Text style={styles.dropdownButtonText}>
+                  {selectedTime || 'Select time slot'}
+                </Text>
+                <IconSymbol name="chevron.down" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              
+              {/* Time Dropdown Modal */}
+              <Modal
+                visible={showTimeDropdown}
+                transparent={true}
+                animationType="slide"
+              >
+                <View style={styles.modalOverlay}>
+                  <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Select Time Slot</Text>
+                      <TouchableOpacity onPress={() => setShowTimeDropdown(false)}>
+                        <IconSymbol name="xmark" size={24} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <ScrollView>
+                      {getTimeSlots().map((time) => (
+                        <TouchableOpacity
+                          key={time}
+                          style={styles.modalOption}
+                          onPress={() => {
+                            setSelectedTime(time);
+                            setShowTimeDropdown(false);
+                          }}
+                        >
+                          <Text style={styles.modalOptionText}>{time}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
                 </View>
-                
-                {customerEmail ? (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Email:</Text>
-                    <Text style={styles.detailValue}>{customerEmail}</Text>
+              </Modal>
+            </CardContent>
+          </Card>
+          
+          {/* Payment Method */}
+          <Card style={styles.card}>
+            <CardContent style={styles.cardContent}>
+              <View style={styles.sectionHeader}>
+                <IconSymbol name="creditcard.fill" size={20} color="#00FF88" />
+                <Text style={styles.sectionTitle}>Payment Method</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.dropdownButton}
+                onPress={() => setShowPaymentDropdown(true)}
+              >
+                <Text style={styles.dropdownButtonText}>
+                  {paymentType === 'full' && 'Full Payment'}
+                  {paymentType === 'half' && '50% Deposit'}
+                  {paymentType === 'later' && 'Pay After Game'}
+                  {!paymentType && 'Select payment method'}
+                </Text>
+                <IconSymbol name="chevron.down" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+              
+              {/* Payment Dropdown Modal */}
+              <Modal
+                visible={showPaymentDropdown}
+                transparent={true}
+                animationType="slide"
+              >
+                <View style={styles.modalOverlay}>
+                  <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Select Payment Method</Text>
+                      <TouchableOpacity onPress={() => setShowPaymentDropdown(false)}>
+                        <IconSymbol name="xmark" size={24} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <ScrollView>
+                      {[
+                        { id: 'later', label: 'Pay After Game', description: 'Customer pays at pitch' },
+                        { id: 'half', label: '50% Deposit', description: '50% deposit now' },
+                        { id: 'full', label: 'Full Payment', description: 'Complete payment now' }
+                      ].map((option) => (
+                        <TouchableOpacity
+                          key={option.id}
+                          style={styles.modalOption}
+                          onPress={() => {
+                            setPaymentType(option.id as any);
+                            setShowPaymentDropdown(false);
+                          }}
+                        >
+                          <Text style={styles.modalOptionText}>{option.label}</Text>
+                          <Text style={styles.modalOptionSubtext}>{option.description}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
                   </View>
-                ) : null}
-                
-                {customerPhone ? (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Phone:</Text>
-                    <Text style={styles.detailValue}>{customerPhone}</Text>
-                  </View>
-                ) : null}
-              </CardContent>
-            </Card>
-          </View>
-        );
-      
-      default:
-        return null;
-    }
+                </View>
+              </Modal>
+            </CardContent>
+          </Card>
+        </ScrollView>
+      </View>
+    );
   };
   
   // Render navigation buttons
   const renderNavigationButtons = () => (
     <View style={styles.buttonContainer}>
-      {currentStep > 1 && (
-        <TouchableOpacity 
-          style={styles.navButton}
-          onPress={prevStep}
-        >
-          <Text style={styles.navButtonText}>Back</Text>
-        </TouchableOpacity>
-      )}
-      
-      {currentStep < totalSteps ? (
-        <TouchableOpacity 
-          style={[styles.navButton, styles.nextButton]}
-          onPress={nextStep}
-        >
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity 
-          style={[styles.navButton, styles.submitButton]}
-          onPress={handleSubmit}
-          disabled={isSubmitting}
-        >
-          <Text style={styles.submitButtonText}>
-            {isSubmitting ? 'Creating...' : 'Confirm Booking'}
-          </Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity 
+        style={[styles.navButton, styles.submitButton]}
+        onPress={handleSubmit}
+        disabled={isSubmitting}
+      >
+        <Text style={styles.submitButtonText}>
+          {isSubmitting ? 'Creating...' : 'Create Booking'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
   
@@ -556,10 +388,8 @@ export default function AddBookingScreen() {
           <IconSymbol name="chevron.left" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.title}>Add Booking</Text>
-        <Text style={styles.stepInfo}>{currentStep}/{totalSteps}</Text>
+        <View style={styles.headerSpacer} />
       </View>
-      
-      {renderStepIndicator()}
       
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         {renderStepContent()}
@@ -597,6 +427,9 @@ const styles = StyleSheet.create({
   stepInfo: {
     fontSize: 16,
     color: '#888888',
+  },
+  headerSpacer: {
+    width: 24,
   },
   stepIndicator: {
     flexDirection: 'row',
@@ -648,6 +481,75 @@ const styles = StyleSheet.create({
   stepSubtitle: {
     fontSize: 16,
     color: '#888888',
+  },
+  singleFormScrollView: {
+    flex: 1,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#0A0A0A',
+  },
+  dropdownButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#1E1E1E',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  modalOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  modalOptionSubtext: {
+    fontSize: 14,
+    color: '#888888',
+    marginTop: 4,
+  },
+  emptySummaryText: {
+    fontSize: 16,
+    color: '#888888',
+    textAlign: 'center',
+    padding: 20,
   },
   pitchesList: {
     gap: 12,

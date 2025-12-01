@@ -74,39 +74,25 @@ export default function EditBookingScreen() {
   const checkForConflicts = () => {
     if (!selectedPitchId) return false;
     
-    const allBookings = useBookingStore.getState().bookings;
-    const selectedPitchBookings = allBookings.filter(b => 
-      b.pitchId === selectedPitchId && b.id !== booking.id
-    );
+    // Calculate end time
+    const [startHours, startMinutes] = selectedTime.split(':').map(Number);
+    const endTime = new Date(selectedDate);
+    endTime.setHours(startHours + duration, startMinutes, 0, 0);
+    const endTimeString = `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`;
     
-    const newStartTime = selectedTime;
-    const [startHours, startMinutes] = newStartTime.split(':').map(Number);
-    const newStartDateTime = new Date(selectedDate);
-    newStartDateTime.setHours(startHours, startMinutes, 0, 0);
-    
-    const newEndTime = new Date(newStartDateTime);
-    newEndTime.setHours(newEndTime.getHours() + duration);
-    
-    return selectedPitchBookings.some(b => {
-      const existingStart = new Date(b.bookingDate);
-      const [existingStartHours, existingStartMinutes] = b.startTime.split(':').map(Number);
-      existingStart.setHours(existingStartHours, existingStartMinutes, 0, 0);
-      
-      const existingEnd = new Date(b.bookingDate);
-      const [existingEndHours, existingEndMinutes] = b.endTime.split(':').map(Number);
-      existingEnd.setHours(existingEndHours, existingEndMinutes, 0, 0);
-      
-      return (
-        existingStart < newEndTime && 
-        existingEnd > newStartDateTime
-      );
-    });
+    const bookings = useBookingStore.getState();
+    return bookings.checkForConflicts(selectedPitchId, selectedTime, endTimeString, selectedDate, booking.id);
   };
-  
+
   // Handle form submission
   const handleSubmit = () => {
-    if (!selectedPitchId || !customerName) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    if (!selectedPitchId) {
+      Alert.alert('Error', 'Please select a pitch');
+      return;
+    }
+    
+    if (!customerName.trim()) {
+      Alert.alert('Error', 'Please enter customer name');
       return;
     }
     

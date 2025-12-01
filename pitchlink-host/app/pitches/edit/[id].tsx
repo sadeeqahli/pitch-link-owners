@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { usePitchStore } from '@/store/usePitchStore';
 import { Pitch } from '@/store/usePitchStore';
+import * as ImagePicker from 'expo-image-picker';
 
 // Define facility types
 type Facility = 'lights' | 'parking' | 'seating' | 'dressingRoom' | 'water' | 'turfType';
@@ -18,19 +19,18 @@ export default function EditPitchScreen() {
   
   // Multi-step form state
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 6;
+  const totalSteps = 3;
   
-  // Step 1: Basic Details
+  // Step 1 form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
-  
-  // Step 2: Pricing
   const [pricePerHour, setPricePerHour] = useState('');
   const [nightPricing, setNightPricing] = useState('');
-  const [discounts, setDiscounts] = useState(false);
   
-  // Step 3: Availability
+  // Step 2 form state
+  // Availability
+  const [isAvailabilityExpanded, setIsAvailabilityExpanded] = useState(false);
   const [availability, setAvailability] = useState({
     monday: { available: true, startTime: '08:00', endTime: '22:00' },
     tuesday: { available: true, startTime: '08:00', endTime: '22:00' },
@@ -42,7 +42,7 @@ export default function EditPitchScreen() {
   });
   const [fullyBookedDays, setFullyBookedDays] = useState<string[]>([]);
   
-  // Step 4: Facilities
+  // Facilities
   const [facilities, setFacilities] = useState<Record<Facility, boolean>>({
     lights: false,
     parking: false,
@@ -51,21 +51,94 @@ export default function EditPitchScreen() {
     water: false,
     turfType: false,
   });
-  const [turfType, setTurfType] = useState<'natural' | 'artificial' | 'hybrid'>('natural');
   
-  // Step 5: Images
+  // Step 3 form state
+  const [turfType, setTurfType] = useState<'grass' | 'artificial' | 'concrete' | 'other'>('grass');
+  
+  // Images
   const [images, setImages] = useState<string[]>([]);
-  
-  // Step 6: Preview
   const [loading, setLoading] = useState(false);
-
-  // Initialize form with existing pitch data
+  
+  // Drag and drop state
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  
+  // Function to pick image from camera or gallery
+  const pickImage = async () => {
+    try {
+      // Show options to user
+      Alert.alert(
+        'Select Image Source',
+        'Choose an option',
+        [
+          {
+            text: 'Take Photo',
+            onPress: async () => {
+              // Request camera permission
+              const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+              if (cameraPermission.status !== 'granted') {
+                Alert.alert('Permission denied', 'Camera permission is required to take photos.');
+                return;
+              }
+              
+              // Launch camera
+              const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+              });
+              
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                setImages(prev => [...prev, result.assets[0].uri]);
+              }
+            },
+          },
+          {
+            text: 'Choose from Gallery',
+            onPress: async () => {
+              // Request gallery permission
+              const galleryPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (galleryPermission.status !== 'granted') {
+                Alert.alert('Permission denied', 'Gallery permission is required to select photos.');
+                return;
+              }
+              
+              // Launch image library
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.8,
+              });
+              
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                setImages(prev => [...prev, result.assets[0].uri]);
+              }
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
   useEffect(() => {
     if (pitch) {
       setName(pitch.name);
       setDescription(pitch.description);
       setLocation(pitch.location);
       setPricePerHour(pitch.pricePerHour.toString());
+      
+      // Initialize images
+      if (pitch.imageUrl) {
+        setImages([pitch.imageUrl]);
+      }
       
       // Parse amenities to facilities
       const initialFacilities: Record<Facility, boolean> = {
@@ -87,27 +160,15 @@ export default function EditPitchScreen() {
         
         if (lowerAmenity.includes('turf')) {
           if (lowerAmenity.includes('artificial')) setTurfType('artificial');
-          else if (lowerAmenity.includes('hybrid')) setTurfType('hybrid');
-          else setTurfType('natural');
+          else if (lowerAmenity.includes('concrete')) setTurfType('concrete');
+          else if (lowerAmenity.includes('other')) setTurfType('other');
+          else setTurfType('grass');
         }
       });
       
       setFacilities(initialFacilities);
     }
   }, [pitch]);
-
-  // Navigation functions
-  const nextStep = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
 
   // Handle form submission
   const handleSubmit = () => {
@@ -133,7 +194,7 @@ export default function EditPitchScreen() {
         }
       });
       
-      if (turfType !== 'natural') {
+      if (turfType !== 'grass') {
         amenities.push(`Turf: ${turfType}`);
       }
       
@@ -143,9 +204,10 @@ export default function EditPitchScreen() {
         pricePerHour: price,
         location,
         amenities,
-        surfaceType: turfType,
+        surfaceType: turfType as 'grass' | 'artificial' | 'concrete' | 'other',
         size: pitch?.size || 'Standard',
         status: pitch?.status || 'available',
+        imageUrl: images.length > 0 ? images[0] : pitch?.imageUrl,
       });
       
       router.back();
@@ -157,7 +219,7 @@ export default function EditPitchScreen() {
   };
 
   // Toggle day availability
-  const toggleDayAvailability = (day: string) => {
+  const toggleDayAvailability = (day: keyof typeof availability) => {
     setAvailability(prev => ({
       ...prev,
       [day]: {
@@ -183,42 +245,35 @@ export default function EditPitchScreen() {
       [facility]: !prev[facility]
     }));
   };
-
-  // Render step indicator
-  const renderStepIndicator = () => (
-    <View style={styles.stepIndicator}>
-      {Array.from({ length: totalSteps }).map((_, index) => (
-        <View key={index} style={styles.stepContainer}>
-          <View style={[
-            styles.stepCircle,
-            currentStep === index + 1 && styles.activeStepCircle
-          ]}>
-            <Text style={[
-              styles.stepText,
-              currentStep === index + 1 && styles.activeStepText
-            ]}>
-              {index + 1}
-            </Text>
-          </View>
-          {index < totalSteps - 1 && (
-            <View style={[
-              styles.stepLine,
-              currentStep > index + 1 && styles.completedStepLine
-            ]} />
-          )}
-        </View>
-      ))}
-    </View>
-  );
-
-  // Render step content
+    
+  // Reorder images
+  const reorderImages = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+      
+    const newImages = [...images];
+    const [movedImage] = newImages.splice(fromIndex, 1);
+    newImages.splice(toIndex, 0, movedImage);
+    setImages(newImages);
+  };
+  
+  // Move image to a specific position
+  const moveImageToPosition = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    
+    const newImages = [...images];
+    const [movedImage] = newImages.splice(fromIndex, 1);
+    newImages.splice(toIndex, 0, movedImage);
+    setImages(newImages);
+    setSelectedImageIndex(null);
+  };
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Basic Details</Text>
-            
+    return (
+      <View style={styles.stepContent}>
+        <Text style={styles.stepTitle}>Edit Pitch - Step {currentStep} of {totalSteps}</Text>
+        
+        {currentStep === 1 && (
+          <>
+            {/* Basic Details */}
             <Text style={styles.label}>Pitch Name *</Text>
             <TextInput
               style={styles.input}
@@ -251,14 +306,8 @@ export default function EditPitchScreen() {
             <TouchableOpacity style={styles.mapPickerButton}>
               <Text style={styles.mapPickerText}>Select on Map</Text>
             </TouchableOpacity>
-          </View>
-        );
-      
-      case 2:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Pricing</Text>
             
+            {/* Pricing */}
             <Text style={styles.label}>Price per Hour (₦) *</Text>
             <TextInput
               style={styles.input}
@@ -278,103 +327,94 @@ export default function EditPitchScreen() {
               onChangeText={setNightPricing}
               keyboardType="decimal-pad"
             />
-            
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchLabel}>Offer Discounts</Text>
-              <Switch
-                value={discounts}
-                onValueChange={setDiscounts}
-                trackColor={{ false: '#333333', true: '#00FF88' }}
-                thumbColor={discounts ? '#FFFFFF' : '#888888'}
-              />
-            </View>
-          </View>
-        );
-      
-      case 3:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Availability</Text>
-            
-            <ScrollView style={styles.availabilityScroll}>
-              {Object.entries(availability).map(([day, schedule]) => (
-                <View key={day} style={styles.dayContainer}>
-                  <View style={styles.dayHeader}>
-                    <Text style={styles.dayName}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
-                    <Switch
-                      value={schedule.available}
-                      onValueChange={() => toggleDayAvailability(day)}
-                      trackColor={{ false: '#333333', true: '#00FF88' }}
-                      thumbColor={schedule.available ? '#FFFFFF' : '#888888'}
-                    />
-                  </View>
-                  
-                  {schedule.available && (
-                    <View style={styles.timeContainer}>
-                      <View style={styles.timeInputContainer}>
-                        <Text style={styles.timeLabel}>Start</Text>
-                        <TextInput
-                          style={styles.timeInput}
-                          value={schedule.startTime}
-                          placeholder="08:00"
-                          placeholderTextColor="#888888"
-                        />
-                      </View>
-                      
-                      <View style={styles.timeInputContainer}>
-                        <Text style={styles.timeLabel}>End</Text>
-                        <TextInput
-                          style={styles.timeInput}
-                          value={schedule.endTime}
-                          placeholder="22:00"
-                          placeholderTextColor="#888888"
-                        />
-                      </View>
-                    </View>
-                  )}
-                  
-                  <TouchableOpacity 
-                    style={[
-                      styles.fullyBookedButton,
-                      fullyBookedDays.includes(day) && styles.fullyBookedButtonActive
-                    ]}
-                    onPress={() => toggleFullyBookedDay(day)}
+          </>
+        )}
+        
+        {currentStep === 2 && (
+          <>
+            {/* Availability Section - Expandable */}
+            <View style={styles.section}>
+              <TouchableOpacity 
+                style={styles.sectionHeader}
+                onPress={() => setIsAvailabilityExpanded(!isAvailabilityExpanded)}
+              >
+                <Text style={styles.sectionTitle}>Availability</Text>
+                <Text style={styles.tapToExpand}>
+                  {isAvailabilityExpanded ? 'Tap to collapse' : 'Tap to expand'}
+                </Text>
+              </TouchableOpacity>
+              
+              {isAvailabilityExpanded && (
+                <View style={styles.scrollContainer}>
+                  <ScrollView 
+                    style={styles.availabilityScroll}
+                    showsVerticalScrollIndicator={true}
+                    persistentScrollbar={true}
+                    indicatorStyle="white"
                   >
-                    <Text style={[
-                      styles.fullyBookedText,
-                      fullyBookedDays.includes(day) && styles.fullyBookedTextActive
-                    ]}>
-                      {fullyBookedDays.includes(day) ? 'Marked as Fully Booked' : 'Mark as Fully Booked'}
-                    </Text>
-                  </TouchableOpacity>
+                  {Object.entries(availability).map(([day, schedule]) => (
+                    <View key={day} style={styles.dayContainer}>
+                      <View style={styles.dayHeader}>
+                        <Text style={styles.dayName}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
+                        <Switch
+                          value={schedule.available}
+                          onValueChange={() => toggleDayAvailability(day as keyof typeof availability)}
+                          trackColor={{ false: '#333333', true: '#00FF88' }}
+                          thumbColor={schedule.available ? '#FFFFFF' : '#888888'}
+                        />
+                      </View>
+                                  
+                      {schedule.available && (
+                        <View style={styles.timeContainer}>
+                          <View style={styles.timeInputContainer}>
+                            <Text style={styles.timeLabel}>Start</Text>
+                            <TextInput
+                              style={styles.timeInput}
+                              value={schedule.startTime}
+                              placeholder="08:00"
+                              placeholderTextColor="#888888"
+                            />
+                          </View>
+                                      
+                          <View style={styles.timeInputContainer}>
+                            <Text style={styles.timeLabel}>End</Text>
+                            <TextInput
+                              style={styles.timeInput}
+                              value={schedule.endTime}
+                              placeholder="22:00"
+                              placeholderTextColor="#888888"
+                            />
+                          </View>
+                        </View>
+                      )}
+                                  
+                      <TouchableOpacity 
+                        style={[
+                          styles.fullyBookedButton,
+                          fullyBookedDays.includes(day) && styles.fullyBookedButtonActive
+                        ]}
+                        onPress={() => toggleFullyBookedDay(day)}
+                      >
+                        <Text style={[
+                          styles.fullyBookedText,
+                          fullyBookedDays.includes(day) && styles.fullyBookedTextActive
+                        ]}>
+                          {fullyBookedDays.includes(day) ? 'Marked as Fully Booked' : 'Mark as Fully Booked'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+                {/* Custom scrollbar track for visual enhancement */}
+                <View style={styles.customScrollbarTrack}>
+                  <View style={styles.customScrollbarThumb} />
                 </View>
-              ))}
-            </ScrollView>
-            
-            <View style={styles.maintenanceContainer}>
-              <Text style={styles.maintenanceLabel}>Maintenance Mode</Text>
-              <View style={styles.switchContainer}>
-                <Text style={styles.switchLabel}>Auto close pitch for maintenance</Text>
-                <Switch
-                  value={pitch?.status === 'maintenance'}
-                  onValueChange={(value) => {
-                    updatePitch(pitch!.id, {
-                      status: value ? 'maintenance' : 'available'
-                    });
-                  }}
-                  trackColor={{ false: '#333333', true: '#00FF88' }}
-                  thumbColor={pitch?.status === 'maintenance' ? '#FFFFFF' : '#888888'}
-                />
               </View>
+            )}
             </View>
-          </View>
-        );
-      
-      case 4:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Facilities</Text>
             
+            {/* Facilities */}
+            <Text style={styles.label}>Facilities</Text>
             <View style={styles.facilitiesGrid}>
               {Object.entries(facilities).map(([facility, enabled]) => (
                 <TouchableOpacity
@@ -394,19 +434,23 @@ export default function EditPitchScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            
+          </>
+        )}
+        
+        {currentStep === 3 && (
+          <>
             <Text style={styles.label}>Turf Type</Text>
             <View style={styles.segmentedControl}>
               <TouchableOpacity
                 style={[
                   styles.segment,
-                  turfType === 'natural' && styles.selectedSegment
+                  turfType === 'grass' && styles.selectedSegment
                 ]}
-                onPress={() => setTurfType('natural')}
+                onPress={() => setTurfType('grass')}
               >
                 <Text style={[
                   styles.segmentText,
-                  turfType === 'natural' && styles.selectedSegmentText
+                  turfType === 'grass' && styles.selectedSegmentText
                 ]}>
                   Natural
                 </Text>
@@ -430,33 +474,43 @@ export default function EditPitchScreen() {
               <TouchableOpacity
                 style={[
                   styles.segment,
-                  turfType === 'hybrid' && styles.selectedSegment
+                  turfType === 'concrete' && styles.selectedSegment
                 ]}
-                onPress={() => setTurfType('hybrid')}
+                onPress={() => setTurfType('concrete')}
               >
                 <Text style={[
                   styles.segmentText,
-                  turfType === 'hybrid' && styles.selectedSegmentText
+                  turfType === 'concrete' && styles.selectedSegmentText
                 ]}>
-                  Hybrid
+                  Concrete
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.segment,
+                  turfType === 'other' && styles.selectedSegment
+                ]}
+                onPress={() => setTurfType('other')}
+              >
+                <Text style={[
+                  styles.segmentText,
+                  turfType === 'other' && styles.selectedSegmentText
+                ]}>
+                  Other
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        );
-      
-      case 5:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Images</Text>
             
+            {/* Images */}
+            <Text style={styles.label}>Images</Text>
             <Text style={styles.imageInstruction}>
               Upload 3-6 pictures of your pitch (minimum 3 required)
             </Text>
             
             <View style={styles.imageUploadContainer}>
               {images.length < 6 ? (
-                <TouchableOpacity style={styles.imageUploadButton}>
+                <TouchableOpacity style={styles.imageUploadButton} onPress={pickImage}>
                   <Text style={styles.imageUploadText}>+</Text>
                   <Text style={styles.imageUploadSubtext}>Add Photo</Text>
                 </TouchableOpacity>
@@ -464,93 +518,74 @@ export default function EditPitchScreen() {
               
               {images.map((image, index) => (
                 <View key={index} style={styles.imagePreviewContainer}>
-                  <Image source={{ uri: image }} style={styles.imagePreview} />
-                  <TouchableOpacity style={styles.removeImageButton}>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      if (selectedImageIndex === null) {
+                        // First selection - mark this image as selected
+                        setSelectedImageIndex(index);
+                      } else if (selectedImageIndex === index) {
+                        // Clicking the same image again - deselect
+                        setSelectedImageIndex(null);
+                      } else {
+                        // Moving selected image to this position
+                        moveImageToPosition(selectedImageIndex, index);
+                      }
+                    }}
+                  >
+                    <Image source={{ uri: image }} style={styles.imagePreview} />
+                    {selectedImageIndex === index && (
+                      <View style={styles.selectedImageOverlay} />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.removeImageButton}
+                    onPress={() => {
+                      setImages(prev => prev.filter((_, i) => i !== index));
+                      if (selectedImageIndex === index) {
+                        setSelectedImageIndex(null);
+                      } else if (selectedImageIndex !== null && selectedImageIndex > index) {
+                        setSelectedImageIndex(selectedImageIndex - 1);
+                      }
+                    }}
+                  >
                     <Text style={styles.removeImageText}>×</Text>
+                  </TouchableOpacity>
+                  {/* Drag handle for reordering */}
+                  <TouchableOpacity 
+                    style={styles.dragHandle}
+                    onLongPress={() => {
+                      // In a real implementation, this would start the drag operation
+                      console.log('Drag started for image at index:', index);
+                    }}
+                  >
+                    <Text style={styles.dragHandleText}>⋮⋮</Text>
                   </TouchableOpacity>
                 </View>
               ))}
+              
+              {selectedImageIndex !== null && (
+                <View style={styles.moveInstructions}>
+                  <Text style={styles.moveInstructionsText}>
+                    Tap another position to move the selected image there
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.cancelMoveButton}
+                    onPress={() => setSelectedImageIndex(null)}
+                  >
+                    <Text style={styles.cancelMoveText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
             
             <Text style={styles.imageHint}>
               Tap and hold to reorganize photos. First photo will be used as cover.
             </Text>
-          </View>
-        );
-      
-      case 6:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Preview</Text>
-            
-            <View style={styles.previewCard}>
-              <Text style={styles.previewTitle}>{name || 'Pitch Name'}</Text>
-              <Text style={styles.previewDescription}>{description || 'Pitch description'}</Text>
-              <Text style={styles.previewLocation}>{location || 'Location'}</Text>
-              <Text style={styles.previewPrice}>₦{pricePerHour || '0.00'}/hour</Text>
-              
-              <View style={styles.previewFacilities}>
-                {Object.entries(facilities).filter(([_, enabled]) => enabled).map(([facility]) => (
-                  <View key={facility} style={styles.previewFacilityTag}>
-                    <Text style={styles.previewFacilityText}>
-                      {facility.charAt(0).toUpperCase() + facility.slice(1).replace(/([A-Z])/g, ' $1')}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-            
-            <View style={styles.statusContainer}>
-              <Text style={styles.statusLabel}>Current Status</Text>
-              <View style={[
-                styles.statusBadge,
-                pitch?.status === 'available' && styles.statusAvailable,
-                pitch?.status === 'booked' && styles.statusBooked,
-                pitch?.status === 'maintenance' && styles.statusMaintenance,
-              ]}>
-                <Text style={styles.statusText}>{pitch?.status || 'available'}</Text>
-              </View>
-            </View>
-          </View>
-        );
-      
-      default:
-        return null;
-    }
+          </>
+        )}
+      </View>
+    );
   };
-
-  // Render navigation buttons
-  const renderNavigationButtons = () => (
-    <View style={styles.buttonContainer}>
-      {currentStep > 1 && (
-        <TouchableOpacity 
-          style={styles.navButton}
-          onPress={prevStep}
-        >
-          <Text style={styles.navButtonText}>Back</Text>
-        </TouchableOpacity>
-      )}
-      
-      {currentStep < totalSteps ? (
-        <TouchableOpacity 
-          style={[styles.navButton, styles.nextButton]}
-          onPress={nextStep}
-        >
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity 
-          style={[styles.navButton, styles.submitButton]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          <Text style={styles.submitButtonText}>
-            {loading ? 'Saving...' : 'Save Changes'}
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
 
   if (!pitch) {
     return (
@@ -572,16 +607,67 @@ export default function EditPitchScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Edit Pitch</Text>
-        <Text style={styles.stepInfo}>Step {currentStep} of {totalSteps}</Text>
       </View>
       
-      {renderStepIndicator()}
+      {/* Step Indicator */}
+      <View style={styles.stepIndicator}>
+        {[1, 2, 3].map((step) => (
+          <View key={step} style={styles.stepIndicatorItem}>
+            <View style={[
+              styles.stepIndicatorCircle,
+              step <= currentStep && styles.stepIndicatorCircleActive
+            ]}>
+              <Text style={[
+                styles.stepIndicatorText,
+                step <= currentStep && styles.stepIndicatorTextActive
+              ]}>
+                {step}
+              </Text>
+            </View>
+            {step < 3 && (
+              <View style={[
+                styles.stepIndicatorLine,
+                step < currentStep && styles.stepIndicatorLineActive
+              ]} />
+            )}
+          </View>
+        ))}
+      </View>
       
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         {renderStepContent()}
       </ScrollView>
       
-      {renderNavigationButtons()}
+      {/* Navigation Buttons */}
+      <View style={styles.buttonContainer}>
+        {currentStep > 1 && (
+          <TouchableOpacity 
+            style={styles.navButton}
+            onPress={() => setCurrentStep(currentStep - 1)}
+          >
+            <Text style={styles.navButtonText}>Back</Text>
+          </TouchableOpacity>
+        )}
+        
+        {currentStep < totalSteps ? (
+          <TouchableOpacity 
+            style={[styles.navButton, styles.nextButton]}
+            onPress={() => setCurrentStep(currentStep + 1)}
+          >
+            <Text style={styles.nextButtonText}>Next</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={[styles.navButton, styles.submitButton]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            <Text style={styles.submitButtonText}>
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -616,47 +702,42 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  stepInfo: {
-    fontSize: 16,
-    color: '#888888',
-  },
+  // Step Indicator Styles
   stepIndicator: {
     flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
     paddingHorizontal: 20,
-    paddingBottom: 20,
   },
-  stepContainer: {
+  stepIndicatorItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
-  stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#1E1E1E',
-    borderWidth: 1,
-    borderColor: '#333333',
+  stepIndicatorCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#333333',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  activeStepCircle: {
+  stepIndicatorCircleActive: {
     backgroundColor: '#00FF88',
-    borderColor: '#00FF88',
   },
-  stepText: {
+  stepIndicatorText: {
     color: '#888888',
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
-  activeStepText: {
+  stepIndicatorTextActive: {
     color: '#000000',
   },
-  stepLine: {
-    flex: 1,
-    height: 1,
+  stepIndicatorLine: {
+    width: 30,
+    height: 2,
     backgroundColor: '#333333',
   },
-  completedStepLine: {
+  stepIndicatorLineActive: {
     backgroundColor: '#00FF88',
   },
   stepContent: {
@@ -672,6 +753,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '600',
+    marginBottom: 8,
   },
   input: {
     height: 50,
@@ -681,6 +763,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     color: '#FFFFFF',
     backgroundColor: '#1E1E1E',
+    marginBottom: 16,
   },
   textArea: {
     height: 100,
@@ -695,26 +778,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#00FF88',
+    marginBottom: 16,
   },
   mapPickerText: {
     color: '#00FF88',
     fontWeight: '600',
   },
-  switchContainer: {
+  section: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    padding: 10,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    marginBottom: 10,
   },
-  switchLabel: {
-    fontSize: 16,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  tapToExpand: {
+    fontSize: 14,
+    color: '#00FF88',
     fontWeight: '600',
-    flex: 1,
-    marginRight: 10,
   },
   availabilityScroll: {
-    maxHeight: 350,
+    maxHeight: 300,
+    marginBottom: 20,
+  },
+  scrollContainer: {
+    position: 'relative',
+  },
+  customScrollbarTrack: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    width: 16,
+    height: '100%',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+  },
+  customScrollbarThumb: {
+    width: 16,
+    height: 80,
+    backgroundColor: '#00FF88',
+    borderRadius: 8,
   },
   dayContainer: {
     marginBottom: 20,
@@ -773,22 +885,11 @@ const styles = StyleSheet.create({
   fullyBookedTextActive: {
     color: '#FF4444',
   },
-  maintenanceContainer: {
-    marginTop: 20,
-    padding: 16,
-    backgroundColor: '#1E1E1E',
-    borderRadius: 8,
-  },
-  maintenanceLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 10,
-  },
   facilitiesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    marginBottom: 20,
   },
   facilityButton: {
     paddingHorizontal: 16,
@@ -815,6 +916,7 @@ const styles = StyleSheet.create({
     borderColor: '#333333',
     borderRadius: 8,
     backgroundColor: '#1E1E1E',
+    marginBottom: 20,
   },
   segment: {
     flex: 1,
@@ -886,6 +988,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  // Drag Handle Styles
+  dragHandle: {
+    position: 'absolute',
+    top: -8,
+    left: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#00FF88',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dragHandleText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   imageHint: {
     fontSize: 14,
     color: '#888888',
@@ -893,80 +1012,38 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontStyle: 'italic',
   },
-  previewCard: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 12,
-    padding: 20,
-    gap: 12,
-  },
-  previewTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  previewDescription: {
-    fontSize: 16,
-    color: '#CCCCCC',
-    lineHeight: 22,
-  },
-  previewLocation: {
-    fontSize: 14,
-    color: '#888888',
-  },
-  previewPrice: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#00FF88',
-  },
-  previewFacilities: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingTop: 8,
-  },
-  previewFacilityTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: '#333333',
-  },
-  previewFacilityText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#1E1E1E',
+  // Selected Image Overlay
+  selectedImageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderWidth: 3,
+    borderColor: '#00FF88',
     borderRadius: 8,
   },
-  statusLabel: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    fontWeight: '600',
+  // Move Instructions
+  moveInstructions: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  moveInstructionsText: {
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  cancelMoveButton: {
+    padding: 8,
+    backgroundColor: '#FF4444',
     borderRadius: 4,
   },
-  statusAvailable: {
-    backgroundColor: 'rgba(0, 255, 136, 0.2)',
-  },
-  statusBooked: {
-    backgroundColor: 'rgba(255, 68, 68, 0.2)',
-  },
-  statusMaintenance: {
-    backgroundColor: 'rgba(255, 165, 0, 0.2)',
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '600',
+  cancelMoveText: {
     color: '#FFFFFF',
-    textTransform: 'capitalize',
+    fontWeight: '600',
   },
   buttonContainer: {
     flexDirection: 'row',

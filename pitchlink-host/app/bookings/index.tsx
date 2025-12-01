@@ -382,9 +382,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingBottom: 16,
+    justifyContent: 'center',
+    gap: 8,
   },
   tab: {
-    flex: 1,
     height: 40,
     borderRadius: 8,
     backgroundColor: '#1E1E1E',
@@ -392,6 +393,7 @@ const styles = StyleSheet.create({
     borderColor: '#333333',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 35,
   },
   activeTab: {
     backgroundColor: '#00FF88',
@@ -406,7 +408,7 @@ const styles = StyleSheet.create({
   },
   bookingsContainer: {
     padding: 16,
-    gap: 16,
+    gap: 20,
   },
   bookingCard: {
     // TouchableOpacity wrapper

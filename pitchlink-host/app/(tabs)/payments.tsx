@@ -80,69 +80,36 @@ export default function PaymentsScreen() {
           </Card>
         </View>
         
-        <View style={styles.periodCardsContainer}>
-          <Card style={styles.periodCard}>
-            <CardContent style={styles.periodCardContent}>
-              <Text style={styles.periodLabel}>This Week</Text>
-              <Text style={styles.periodValue}>₦{weeklyEarnings.toFixed(2)}</Text>
-            </CardContent>
-          </Card>
-          
-          <Card style={styles.periodCard}>
-            <CardContent style={styles.periodCardContent}>
-              <Text style={styles.periodLabel}>This Month</Text>
-              <Text style={styles.periodValue}>₦{monthlyEarnings.toFixed(2)}</Text>
-            </CardContent>
-          </Card>
-          
-          <Card style={styles.periodCard}>
-            <CardContent style={styles.periodCardContent}>
-              <Text style={styles.periodLabel}>This Year</Text>
-              <Text style={styles.periodValue}>₦{yearlyEarnings.toFixed(2)}</Text>
-            </CardContent>
-          </Card>
-        </View>
-        
-        {/* Quick Links */}
-        <View style={styles.quickLinksContainer}>
-          <TouchableOpacity 
-            style={styles.quickLinkButton}
-            onPress={() => router.push('/payments/receipts')}
-          >
-            <IconSymbol name="doc.text" size={20} color="#00FF88" />
-            <Text style={styles.quickLinkText} numberOfLines={1}>Receipts</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.quickLinkButton}
-            onPress={() => router.push('/payments/activities')}
-          >
-            <IconSymbol name="list.bullet" size={20} color="#00FF88" />
-            <Text style={styles.quickLinkText} numberOfLines={1}>Activities</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.quickLinkButton}
-            onPress={() => router.push('/bookings')}
-          >
-            <IconSymbol name="calendar" size={20} color="#00FF88" />
-            <Text style={styles.quickLinkText} numberOfLines={1}>Booking Receipts</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {/* Important Notice */}
-        <Card style={styles.noticeCard}>
-          <CardContent style={styles.noticeCardContent}>
-            <Text style={styles.noticeTitle}>Important Notice</Text>
-            <Text style={styles.noticeText}>
-              PitchLink charges a 10% platform fee on bookings done through the Player App.
-            </Text>
+        <Card style={styles.combinedPeriodCard}>
+          <CardContent style={styles.combinedPeriodCardContent}>
+            <View style={styles.periodRow}>
+              <View style={styles.periodItem}>
+                <Text style={styles.periodLabel}>This Week</Text>
+                <Text style={styles.periodValue}>₦{weeklyEarnings.toFixed(2)}</Text>
+              </View>
+              
+              <View style={styles.periodItem}>
+                <Text style={styles.periodLabel}>This Month</Text>
+                <Text style={styles.periodValue}>₦{monthlyEarnings.toFixed(2)}</Text>
+              </View>
+              
+              <View style={styles.periodItem}>
+                <Text style={styles.periodLabel}>This Year</Text>
+                <Text style={styles.periodValue}>₦{yearlyEarnings.toFixed(2)}</Text>
+              </View>
+            </View>
           </CardContent>
         </Card>
         
-        {/* Latest Receipts */}
+        {/* Important Notice */}
+        <View style={styles.noticeContainer}>
+          <Text style={styles.noticeText}>Important Notice</Text>
+          <Text style={styles.noticeDescription}>PitchLink charges a 10% platform fee on bookings done through the Player App.</Text>
+        </View>
+        
+        {/* Receipts Section */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Latest Receipts</Text>
+          <Text style={styles.sectionTitle}>Recent Receipts</Text>
           <TouchableOpacity onPress={() => router.push('/payments/receipts')}>
             <Text style={styles.viewAllText}>View All</Text>
           </TouchableOpacity>
@@ -160,21 +127,27 @@ export default function PaymentsScreen() {
             {latestPayments.map((payment) => {
               const booking = bookings.find(b => b.id === payment.bookingId);
               return (
-                <Card key={payment.id} style={styles.receiptCard}>
-                  <CardContent style={styles.receiptCardContent}>
-                    <View style={styles.receiptHeader}>
-                      <Text style={styles.receiptId} numberOfLines={1}>#{payment.id.substring(0, 8)}</Text>
-                      <Text style={styles.receiptAmount} numberOfLines={1}>₦{(payment.amount * 0.9).toFixed(2)}</Text>
-                    </View>
-                    <Text style={styles.receiptPitch} numberOfLines={1}>{booking?.customerName || 'Unknown Customer'}</Text>
-                    <Text style={styles.receiptDate} numberOfLines={1}>
-                      {new Date(payment.createdAt).toLocaleDateString()}
-                    </Text>
-                    <View style={styles.receiptFooter}>
-                      <Text style={styles.receiptSource} numberOfLines={1}>Player App Payment</Text>
-                    </View>
-                  </CardContent>
-                </Card>
+                <TouchableOpacity 
+                  key={payment.id} 
+                  style={styles.receiptCard}
+                  onPress={() => router.push(`/payments/${payment.id}`)}
+                >
+                  <Card style={styles.receiptCardContent}>
+                    <CardContent>
+                      <View style={styles.receiptHeader}>
+                        <Text style={styles.receiptId} numberOfLines={1}>#{payment.id.substring(0, 8)}</Text>
+                        <Text style={styles.receiptAmount} numberOfLines={1}>₦{(payment.amount * 0.9).toFixed(2)}</Text>
+                      </View>
+                      <Text style={styles.receiptPitch} numberOfLines={1}>{booking?.customerName || 'Unknown Customer'}</Text>
+                      <Text style={styles.receiptDate} numberOfLines={1}>
+                        {new Date(payment.createdAt).toLocaleDateString()}
+                      </Text>
+                      <View style={styles.receiptFooter}>
+                        <Text style={styles.receiptSource} numberOfLines={1}>Player App Payment</Text>
+                      </View>
+                    </CardContent>
+                  </Card>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -234,19 +207,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888888',
   },
-  periodCardsContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 16,
-  },
-  periodCard: {
-    flex: 1,
-    backgroundColor: '#1E1E1E',
-  },
-  periodCardContent: {
-    padding: 16,
-    alignItems: 'center',
-  },
   periodLabel: {
     fontSize: 14,
     color: '#CCCCCC',
@@ -257,6 +217,46 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
+  combinedPeriodCard: {
+    marginHorizontal: 16,
+    backgroundColor: '#1E1E1E',
+  },
+  combinedPeriodCardContent: {
+    padding: 16,
+  },
+  periodRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  periodItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  // Important Notice Styles
+  noticeContainer: {
+    marginHorizontal: 16,
+    backgroundColor: 'rgba(234, 188, 21, 0.1)',
+    elevation: 4,
+    marginTop: 16,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFA500',
+  },
+  noticeText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  noticeDescription: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    lineHeight: 20,
+  },
+  // Receipts Section Styles
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -280,10 +280,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   receiptCard: {
-    backgroundColor: '#1E1E1E',
+    // TouchableOpacity wrapper
   },
   receiptCardContent: {
-    padding: 16,
+    backgroundColor: '#1E1E1E',
   },
   receiptHeader: {
     flexDirection: 'row',
@@ -344,50 +344,6 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#888888',
-    textAlign: 'center',
-  },
-  noticeCard: {
-    marginHorizontal: 16,
-    backgroundColor: 'rgba(255, 165, 0, 0.1)',
-    borderColor: 'rgba(255, 165, 0, 0.3)',
-    borderWidth: 1,
-    marginBottom: 24,
-  },
-  noticeCardContent: {
-    padding: 16,
-  },
-  noticeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFA500',
-    marginBottom: 8,
-  },
-  noticeText: {
-    fontSize: 14,
-    color: '#FFA500',
-    lineHeight: 20,
-  },
-  quickLinksContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 24,
-  },
-  quickLinkButton: {
-    flex: 1,
-    backgroundColor: '#1E1E1E',
-    borderRadius: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 80,
-  },
-  quickLinkText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
     textAlign: 'center',
   },
 });

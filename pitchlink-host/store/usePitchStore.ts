@@ -7,7 +7,7 @@ export interface Pitch {
   description: string;
   pricePerHour: number;
   imageUrl?: string;
-  status: 'available' | 'booked' | 'maintenance';
+  status: 'available' | 'maintenance'; // Remove 'booked' status
   amenities: string[];
   size: string; // e.g., "5-a-side", "7-a-side", "11-a-side"
   surfaceType: 'grass' | 'artificial' | 'concrete' | 'other';

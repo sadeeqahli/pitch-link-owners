@@ -16,6 +16,7 @@ export default function BookingDetailScreen() {
   const pitches = usePitchStore((state) => state.pitches);
   const updateBooking = useBookingStore((state) => state.updateBooking);
   const deleteBooking = useBookingStore((state) => state.deleteBooking);
+  const cancelBooking = useBookingStore((state) => state.cancelBooking);
   const addPayment = useBookingStore((state) => state.addPayment);
   
   const booking = bookings.find((b) => b.id === id);
@@ -80,6 +81,24 @@ export default function BookingDetailScreen() {
     addPayment(booking.id, amount);
     setPaymentAmount('');
     setShowPaymentForm(false);
+  };
+  
+  const handleCancel = () => {
+    Alert.alert(
+      'Cancel Booking',
+      'Are you sure you want to cancel this booking?',
+      [
+        { text: 'No', style: 'cancel' },
+        { 
+          text: 'Yes', 
+          style: 'destructive',
+          onPress: () => {
+            cancelBooking(booking.id);
+            router.back();
+          }
+        },
+      ]
+    );
   };
   
   // Calculate remaining balance
@@ -309,6 +328,15 @@ export default function BookingDetailScreen() {
         </Card>
 
         <View style={styles.actionsContainer}>
+          {booking.status !== 'cancelled' && (
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.cancelActionButton]}
+              onPress={handleCancel}
+            >
+              <Text style={styles.cancelActionButtonText}>Cancel Booking</Text>
+            </TouchableOpacity>
+          )}
+          
           <TouchableOpacity 
             style={styles.actionButton}
             onPress={() => {}}
@@ -575,4 +603,13 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: '600',
   },
+  cancelActionButton: {
+    backgroundColor: '#FF4444',
+    marginBottom: 12,
+  },
+  cancelActionButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+
 });

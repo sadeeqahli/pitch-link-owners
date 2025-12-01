@@ -28,6 +28,7 @@ interface BookingState {
   addBooking: (booking: Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateBooking: (id: string, updates: Partial<Booking>) => void;
   deleteBooking: (id: string) => void;
+  cancelBooking: (id: string) => void; // Add cancelBooking to the interface
   loadBookings: () => Promise<void>;
   getBookingsByPitch: (pitchId: string) => Booking[];
   getBookingsByDate: (date: Date) => Booking[];
@@ -37,6 +38,8 @@ interface BookingState {
   // New methods for the payments module
   getPlayerAppBookings: () => Booking[];
   getManualBookings: () => Booking[];
+  // Check for booking conflicts (updated to allow manual bookings for cancelled slots)
+  checkForConflicts: (pitchId: string, startTime: string, endTime: string, date: Date, excludeBookingId?: string) => boolean;
 }
 
 export const useBookingStore = create<BookingState>()((set, get) => ({
@@ -191,4 +194,50 @@ export const useBookingStore = create<BookingState>()((set, get) => ({
     const { bookings } = get();
     return bookings.filter((booking) => booking.source === 'manual');
   },
+  
+  // Check for booking conflicts (updated to allow manual bookings for cancelled slots)
+  checkForConflicts: (pitchId: string, startTime: string, endTime: string, date: Date, excludeBookingId?: string) => {
+    const { bookings } = get();
+    const selectedPitchBookings = bookings.filter(booking => 
+      booking.pitchId === pitchId && 
+      booking.id !== excludeBookingId &&
+      booking.status !== 'cancelled' // Allow booking over cancelled slots
+    );
+    
+    const newStartDateTime = new Date(date);
+    const [startHours, startMinutes] = startTime.split(':').map(Number);
+    newStartDateTime.setHours(startHours, startMinutes, 0, 0);
+    
+    const newEndDateTime = new Date(date);
+    const [endHours, endMinutes] = endTime.split(':').map(Number);
+    newEndDateTime.setHours(endHours, endMinutes, 0, 0);
+    
+    return selectedPitchBookings.some(booking => {
+      const existingStart = new Date(booking.bookingDate);
+      const [existingStartHours, existingStartMinutes] = booking.startTime.split(':').map(Number);
+      existingStart.setHours(existingStartHours, existingStartMinutes, 0, 0);
+      
+      const existingEnd = new Date(booking.bookingDate);
+      const [existingEndHours, existingEndMinutes] = booking.endTime.split(':').map(Number);
+      existingEnd.setHours(existingEndHours, existingEndMinutes, 0, 0);
+      
+      return (
+        existingStart < newEndDateTime && 
+        existingEnd > newStartDateTime
+      );
+    });
+  },
+
+  // Cancel a booking
+  cancelBooking: (id: string) => {
+    set((state) => {
+      const updatedBookings = state.bookings.map((booking) => 
+        booking.id === id ? { ...booking, status: 'cancelled' as const, updatedAt: new Date() } : booking
+      );
+      // Save to AsyncStorage
+      AsyncStorage.setItem('bookings', JSON.stringify(updatedBookings));
+      return { bookings: updatedBookings };
+    });
+  },
+
 }));

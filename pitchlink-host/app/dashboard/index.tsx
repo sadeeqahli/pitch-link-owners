@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Link, useRouter } from 'expo-router';
 import { useBookingStore } from '@/store/useBookingStore';
 import { usePaymentStore } from '@/store/usePaymentStore';
 import { usePitchStore } from '@/store/usePitchStore';
@@ -8,7 +9,34 @@ import { Card, CardContent } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
 
+// Simple Bar Chart Component
+const BarChart = ({ data }: { data: { label: string; value: number }[] }) => {
+  const maxValue = Math.max(...data.map(item => item.value), 1);
+  
+  return (
+    <View style={styles.chartContainer}>
+      {data.map((item, index) => (
+        <View key={index} style={styles.chartBarItem}>
+          <View style={styles.chartBarValueContainer}>
+            <Text style={styles.chartBarValue}>₦{item.value.toFixed(0)}</Text>
+          </View>
+          <View style={styles.chartBarContainer}>
+            <View 
+              style={[
+                styles.chartBar, 
+                { height: `${(item.value / maxValue) * 100}%` }
+              ]} 
+            />
+          </View>
+          <Text style={styles.chartBarLabel}>{item.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
 export default function DashboardScreen() {
+  const router = useRouter();
   const bookings = useBookingStore((state) => state.bookings);
   const payments = usePaymentStore((state) => state.payments);
   const pitches = usePitchStore((state) => state.pitches);
@@ -38,6 +66,38 @@ export default function DashboardScreen() {
   // Get open pitches
   const openPitches = pitches.filter(pitch => pitch.status === 'available').length;
   const pitchStatus = openPitches > 0 ? 'Open' : 'Closed';
+  
+  // Calculate weekly earnings data for the chart
+  const weeklyEarningsData = () => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const todayIndex = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Adjust so Monday is the first day of the week (0)
+    const startOfWeekIndex = todayIndex === 0 ? 6 : todayIndex - 1;
+    
+    return days.map((day, index) => {
+      // Calculate the date for each day of the week
+      const dayDate = new Date(today);
+      const dayOffset = index - startOfWeekIndex;
+      dayDate.setDate(today.getDate() + dayOffset);
+      
+      // Filter payments for this specific day
+      const dayPayments = payments.filter(payment => {
+        const paymentDate = new Date(payment.createdAt);
+        return paymentDate.toDateString() === dayDate.toDateString();
+      });
+      
+      // Calculate total earnings for this day (assuming 90% goes to owner)
+      const dayEarnings = dayPayments.reduce((sum, payment) => sum + (payment.amount * 0.9), 0);
+      
+      return {
+        label: day,
+        value: dayEarnings
+      };
+    });
+  };
+  
+  const chartData = weeklyEarningsData();
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -68,24 +128,13 @@ export default function DashboardScreen() {
 
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <Card style={styles.statCard}>
+          <Card style={[styles.statCard, styles.wideStatCard]}>
             <CardContent style={styles.statCardContent}>
-              <Text style={styles.statValue}>${totalEarnings.toFixed(2)}</Text>
+              <Text style={styles.statValue}>₦{totalEarnings.toFixed(2)}</Text>
               <Text style={styles.statLabel}>Total Earnings</Text>
               <View style={styles.trendContainer}>
                 <IconSymbol name="arrow.up" size={12} color="#00FF88" />
                 <Text style={styles.trendText}>12% from last month</Text>
-              </View>
-            </CardContent>
-          </Card>
-
-          <Card style={styles.statCard}>
-            <CardContent style={styles.statCardContent}>
-              <Text style={styles.statValue}>{totalBookings}</Text>
-              <Text style={styles.statLabel}>Total Bookings</Text>
-              <View style={styles.trendContainer}>
-                <IconSymbol name="arrow.up" size={12} color="#00FF88" />
-                <Text style={styles.trendText}>8% from last month</Text>
               </View>
             </CardContent>
           </Card>
@@ -116,6 +165,15 @@ export default function DashboardScreen() {
           </Card>
         </View>
 
+        {/* Earnings Chart */}
+        <Card style={styles.sectionCard}>
+          <CardContent style={styles.sectionCardContent}>
+            <Text style={styles.sectionTitle}>Weekly Earnings</Text>
+            <Text style={styles.sectionSubtitle}>Last 7 days revenue</Text>
+            <BarChart data={chartData} />
+          </CardContent>
+        </Card>
+
         {/* Next Match */}
         {nextMatch && (
           <Card style={styles.sectionCard}>
@@ -136,47 +194,31 @@ export default function DashboardScreen() {
           </Card>
         )}
 
-        {/* My Pitches */}
+        {/* Quick Actions */}
         <Card style={styles.sectionCard}>
           <CardContent style={styles.sectionCardContent}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Pitches</Text>
-              <TouchableOpacity>
-                <IconSymbol name="plus" size={20} color="#00FF88" />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
             
-            <View style={styles.pitchesList}>
-              {pitches.slice(0, 3).map((pitch) => (
-                <TouchableOpacity key={pitch.id} style={styles.pitchItem}>
-                  <View style={styles.pitchInfo}>
-                    <View style={styles.pitchIconContainer}>
-                      <IconSymbol name="sportscourt.fill" size={20} color="#00FF88" />
-                    </View>
-                    <View style={styles.pitchDetails}>
-                      <Text style={styles.pitchName}>{pitch.name}</Text>
-                      <Text style={styles.pitchPrice}>${pitch.pricePerHour}/hr</Text>
-                    </View>
-                  </View>
-                  <View style={[
-                    styles.pitchStatusBadge,
-                    pitch.status === 'available' && styles.pitchStatusAvailable,
-                    pitch.status === 'booked' && styles.pitchStatusBooked,
-                    pitch.status === 'maintenance' && styles.pitchStatusMaintenance,
-                  ]}>
-                    <Text style={styles.pitchStatusText}>{pitch.status}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-              
-              {pitches.length === 0 && (
-                <View style={styles.emptyPitches}>
-                  <Text style={styles.emptyPitchesText}>No pitches added yet</Text>
-                  <TouchableOpacity style={styles.addPitchButton}>
-                    <Text style={styles.addPitchButtonText}>Add Your First Pitch</Text>
-                  </TouchableOpacity>
+            <View style={styles.quickActionsContainer}>
+              <TouchableOpacity 
+                style={styles.quickActionCard}
+                onPress={() => router.push('/bookings/new')}
+              >
+                <View style={[styles.quickActionIconContainer, { backgroundColor: 'rgba(0, 255, 136, 0.2)' }]}>
+                  <IconSymbol name="calendar.badge.plus" size={32} color="#00FF88" />
                 </View>
-              )}
+                <Text style={styles.quickActionText}>Add Booking</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.quickActionCard}
+                onPress={() => router.push('/pitches')}
+              >
+                <View style={styles.quickActionIconContainer}>
+                  <IconSymbol name="sportscourt.fill" size={24} color="#00FF88" />
+                </View>
+                <Text style={styles.quickActionText}>Manage Pitches</Text>
+              </TouchableOpacity>
             </View>
           </CardContent>
         </Card>
@@ -188,20 +230,28 @@ export default function DashboardScreen() {
             
             <View style={styles.activityList}>
               {payments.slice(0, 3).map((payment) => (
-                <View key={payment.id} style={styles.activityItem}>
+                <TouchableOpacity 
+                  key={`payment-${payment.id}`} 
+                  style={styles.activityItem}
+                  onPress={() => router.push(`/payments/${payment.id}`)}
+                >
                   <View style={styles.activityIconContainer}>
                     <IconSymbol name="creditcard.fill" size={16} color="#00FF88" />
                   </View>
                   <View style={styles.activityDetails}>
                     <Text style={styles.activityTitle}>Payment received</Text>
-                    <Text style={styles.activityAmount}>${payment.amount.toFixed(2)}</Text>
+                    <Text style={styles.activityAmount}>₦{payment.amount.toFixed(2)}</Text>
                   </View>
                   <Text style={styles.activityTime}>2h ago</Text>
-                </View>
+                </TouchableOpacity>
               ))}
               
               {bookings.slice(0, 3).map((booking) => (
-                <View key={booking.id} style={styles.activityItem}>
+                <TouchableOpacity 
+                  key={`booking-${booking.id}`} 
+                  style={styles.activityItem}
+                  onPress={() => router.push(`/bookings/${booking.id}`)}
+                >
                   <View style={styles.activityIconContainer}>
                     <IconSymbol name="calendar.badge.clock" size={16} color="#00FF88" />
                   </View>
@@ -210,7 +260,7 @@ export default function DashboardScreen() {
                     <Text style={styles.activityAmount}>Pitch #{booking.pitchId}</Text>
                   </View>
                   <Text style={styles.activityTime}>5h ago</Text>
-                </View>
+                </TouchableOpacity>
               ))}
               
               {payments.length === 0 && bookings.length === 0 && (
@@ -281,6 +331,10 @@ const styles = StyleSheet.create({
     minWidth: 150,
     backgroundColor: '#1E1E1E',
   },
+  wideStatCard: {
+    flex: 2,
+    minWidth: 200,
+  },
   statCardContent: {
     padding: 16,
   },
@@ -347,6 +401,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#888888',
+    marginBottom: 16,
   },
   nextMatchTitle: {
     fontSize: 16,
@@ -475,6 +534,64 @@ const styles = StyleSheet.create({
   },
   emptyActivityText: {
     fontSize: 16,
+    color: '#888888',
+  },
+  quickActionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  quickActionCard: {
+    flex: 1,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  quickActionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickActionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  chartContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    gap: 4,
+    height: 120,
+  },
+  chartBarItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  chartBarValueContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  chartBarValue: {
+    fontSize: 12,
+    color: '#888888',
+  },
+  chartBarContainer: {
+    width: '100%',
+    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+  },
+  chartBar: {
+    width: '100%',
+    backgroundColor: '#00FF88',
+  },
+  chartBarLabel: {
+    fontSize: 12,
     color: '#888888',
   },
 });

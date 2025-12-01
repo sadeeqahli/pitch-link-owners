@@ -14,14 +14,23 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.pitchlink.host"
+      "bundleIdentifier": "com.pitchlink.host",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take photos of your pitches.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images of your pitches."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0A0A0A"
       },
-      "package": "com.pitchlink.host"
+      "package": "com.pitchlink.host",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",

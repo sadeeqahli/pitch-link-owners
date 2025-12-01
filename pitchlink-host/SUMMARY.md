@@ -101,7 +101,7 @@ constants/
    - Grid/list view of all pitches
    - Ability to add new pitches
    - Pitch details view
-   - Status indicators (available/booked/maintenance)
+   - Status indicators (available/maintenance)
 
 3. **Bookings Screen** (`app/(tabs)/bookings.tsx`)
    - List of all bookings

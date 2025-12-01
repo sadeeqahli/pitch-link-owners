@@ -1,24 +1,40 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { usePitchStore } from '@/store/usePitchStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Plus, Edit, Trash, Search, Calendar } from 'lucide-react-native';
+import { Plus, Edit, Trash, Search, BarChart } from 'lucide-react-native';
 
 export default function PitchesScreen() {
   const router = useRouter();
   const pitches = usePitchStore((state) => state.pitches);
   const searchPitches = usePitchStore((state) => state.searchPitches);
-  const getPitchesByStatus = usePitchStore((state) => state.getPitchesByStatus);
+  const updatePitch = usePitchStore((state) => state.updatePitch);
   const deletePitch = usePitchStore((state) => state.deletePitch);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'available' | 'booked' | 'maintenance'>('all');
 
   const handleDeletePitch = (id: string) => {
-    deletePitch(id);
+    Alert.alert(
+      'Delete Pitch',
+      'Are you sure you want to delete this pitch? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deletePitch(id);
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   const onRefresh = React.useCallback(() => {
@@ -29,23 +45,29 @@ export default function PitchesScreen() {
     }, 1000);
   }, []);
 
+  // Toggle pitch status between available and maintenance
+  const togglePitchStatus = (id: string, currentStatus: 'available' | 'maintenance') => {
+    const newStatus = currentStatus === 'available' ? 'maintenance' : 'available';
+    updatePitch(id, { status: newStatus });
+  };
+
   // Filter and search pitches
   const filteredPitches = useMemo(() => {
-    let result = searchQuery ? searchPitches(searchQuery) : pitches;
-    
-    if (filterStatus !== 'all') {
-      result = result.filter(pitch => pitch.status === filterStatus);
-    }
-    
-    return result;
-  }, [pitches, searchQuery, filterStatus, searchPitches]);
+    return searchQuery ? searchPitches(searchQuery) : pitches;
+  }, [pitches, searchQuery, searchPitches]);
 
-  const statusFilters = [
-    { label: 'All', value: 'all' },
-    { label: 'Available', value: 'available' },
-    { label: 'Booked', value: 'booked' },
-    { label: 'Maintenance', value: 'maintenance' },
-  ];
+  // Calculate analytics data
+  const analyticsData = useMemo(() => {
+    const totalPitches = pitches.length;
+    const availablePitches = pitches.filter(p => p.status === 'available').length;
+    const maintenancePitches = pitches.filter(p => p.status === 'maintenance').length;
+    
+    return {
+      totalPitches,
+      availablePitches,
+      maintenancePitches,
+    };
+  }, [pitches]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -60,7 +82,36 @@ export default function PitchesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Search and Filters */}
+      {/* Analytics Summary Cards */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.analyticsScroll}
+        contentContainerStyle={styles.analyticsContainer}
+      >
+        <Card style={styles.analyticsCard}>
+          <CardContent style={styles.analyticsCardContent}>
+            <Text style={styles.analyticsValue}>{analyticsData.totalPitches}</Text>
+            <Text style={styles.analyticsLabel}>Total Pitches</Text>
+          </CardContent>
+        </Card>
+        
+        <Card style={styles.analyticsCard}>
+          <CardContent style={styles.analyticsCardContent}>
+            <Text style={styles.analyticsValue}>{analyticsData.availablePitches}</Text>
+            <Text style={styles.analyticsLabel}>Available</Text>
+          </CardContent>
+        </Card>
+        
+        <Card style={styles.analyticsCard}>
+          <CardContent style={styles.analyticsCardContent}>
+            <Text style={styles.analyticsValue}>{analyticsData.maintenancePitches}</Text>
+            <Text style={styles.analyticsLabel}>Maintenance</Text>
+          </CardContent>
+        </Card>
+      </ScrollView>
+
+      {/* Search */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
           <Search color="#888888" size={20} style={styles.searchIcon} />
@@ -72,31 +123,6 @@ export default function PitchesScreen() {
             onChangeText={setSearchQuery}
           />
         </View>
-        
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
-          contentContainerStyle={styles.filterContainer}
-        >
-          {statusFilters.map((filter) => (
-            <TouchableOpacity
-              key={filter.value}
-              style={[
-                styles.filterButton,
-                filterStatus === filter.value && styles.activeFilter
-              ]}
-              onPress={() => setFilterStatus(filter.value as any)}
-            >
-              <Text style={[
-                styles.filterText,
-                filterStatus === filter.value && styles.activeFilterText
-              ]}>
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </View>
 
       {filteredPitches.length === 0 ? (
@@ -156,17 +182,20 @@ export default function PitchesScreen() {
                       <Text style={styles.detailValue} numberOfLines={1}>{pitch.location}</Text>
                     </View>
                     
-                    <View style={styles.detailRow}>
+                    {/* Touchable Status - Toggles between available and maintenance */}
+                    <TouchableOpacity 
+                      style={styles.detailRow}
+                      onPress={() => togglePitchStatus(pitch.id, pitch.status)}
+                    >
                       <Text style={styles.detailLabel}>Status:</Text>
                       <View style={[
                         styles.statusBadge,
                         pitch.status === 'available' && styles.statusAvailable,
-                        pitch.status === 'booked' && styles.statusBooked,
                         pitch.status === 'maintenance' && styles.statusMaintenance,
                       ]}>
                         <Text style={styles.statusText}>{pitch.status}</Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   </View>
                   
                   <View style={styles.cardActions}>
@@ -174,8 +203,8 @@ export default function PitchesScreen() {
                       style={styles.viewButton}
                       onPress={() => router.push(`/pitches/${pitch.id}`)}
                     >
-                      <Calendar color="#00FF88" size={16} />
-                      <Text style={styles.viewButtonText}>View</Text>
+                      <BarChart color="#00FF88" size={16} />
+                      <Text style={styles.viewButtonText}>Analytics</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
@@ -238,6 +267,33 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: '600',
   },
+  analyticsScroll: {
+    flexGrow: 0,
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  analyticsContainer: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  analyticsCard: {
+    backgroundColor: '#1E1E1E',
+    minWidth: 120,
+  },
+  analyticsCardContent: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  analyticsValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#00FF88',
+  },
+  analyticsLabel: {
+    fontSize: 14,
+    color: '#888888',
+    marginTop: 4,
+  },
   searchContainer: {
     padding: 20,
     paddingTop: 0,
@@ -260,35 +316,9 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#FFFFFF',
   },
-  filterScroll: {
-    flexGrow: 0,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#1E1E1E',
-    borderWidth: 1,
-    borderColor: '#333333',
-  },
-  activeFilter: {
-    backgroundColor: '#00FF88',
-    borderColor: '#00FF88',
-  },
-  filterText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  activeFilterText: {
-    color: '#000000',
-  },
   pitchesList: {
-    padding: 16,
-    gap: 16,
+    padding: 11,
+    gap: 20,
   },
   pitchCard: {
     backgroundColor: '#1E1E1E',

@@ -32,7 +32,7 @@ A mobile application for football pitch owners to manage their business.
    - Grid/list view of all pitches
    - Ability to add new pitches
    - Pitch details view
-   - Status indicators (available/booked/maintenance)
+   - Status indicators (available/maintenance)
 
 3. **Bookings Page** (Bookings tab)
    - List of all bookings

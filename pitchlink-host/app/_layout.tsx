@@ -7,9 +7,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useInitializeApp } from '@/hooks/useInitializeApp';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+export const unstable_settings = {};
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
