@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Alert, TouchableOpacity, Switch, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { usePitchStore } from '@/store/usePitchStore';
 import { Pitch } from '@/store/usePitchStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define facility types
 type Facility = 'lights' | 'parking' | 'seating' | 'dressingRoom' | 'water' | 'turfType';
@@ -12,6 +13,9 @@ type Facility = 'lights' | 'parking' | 'seating' | 'dressingRoom' | 'water' | 't
 export default function AddPitchScreen() {
   const router = useRouter();
   const addPitch = usePitchStore((state) => state.addPitch);
+  
+  // Business verification state
+  const [businessStatus, setBusinessStatus] = useState<'not_started' | 'incomplete' | 'under_review' | 'approved' | 'rejected'>('not_started');
   
   // Single step form state
   const [showDaysDropdown, setShowDaysDropdown] = useState(false);
@@ -35,12 +39,82 @@ export default function AddPitchScreen() {
   // Turf type
   const [turfType, setTurfType] = useState<'grass' | 'artificial' | 'concrete' | 'other'>('grass');
   
+  // Pitch size
+  const [pitchSize, setPitchSize] = useState<'5-a-side' | '7-a-side' | '9-a-side'>('5-a-side');
+  
   // Images
   const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Load business verification status
+  useEffect(() => {
+    loadBusinessStatus();
+    loadDefaultSettings();
+  }, []);
+
+  const loadBusinessStatus = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('businessSettings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        setBusinessStatus(settings.businessStatus || 'not_started');
+        
+        // If business is not approved, show blocking modal
+        if (settings.businessStatus !== 'approved') {
+          showVerificationBlockingModal();
+        }
+      } else {
+        // If no business settings found, show blocking modal
+        showVerificationBlockingModal();
+      }
+    } catch (error) {
+      console.log('Error loading business settings:', error);
+      // If there's an error loading settings, still show blocking modal for safety
+      showVerificationBlockingModal();
+    }
+  };
+
+  const loadDefaultSettings = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('businessSettings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        if (settings.defaultPitchSize) {
+          setPitchSize(settings.defaultPitchSize);
+        }
+      }
+    } catch (error) {
+      console.log('Error loading default settings:', error);
+    }
+  };
+
+  const showVerificationBlockingModal = () => {
+    Alert.alert(
+      'Business Verification Required',
+      'Your business is not yet verified. Complete your Business Settings to start listing pitches.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => router.back(),
+        },
+        {
+          text: 'Complete Verification',
+          onPress: () => router.push('/profile/business-settings'),
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
   // Handle form submission
   const handleSubmit = () => {
+    // Double-check business verification status
+    if (businessStatus !== 'approved') {
+      showVerificationBlockingModal();
+      return;
+    }
+    
     if (!name || !description || !location || !pricePerHour) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
@@ -73,11 +147,12 @@ export default function AddPitchScreen() {
         name,
         description,
         pricePerHour: price,
-        size: 'Standard', // Default size
+        size: pitchSize, // Use the selected pitch size
         surfaceType: turfType,
         location,
         amenities,
         status: 'available', // Set default status to available instead of booked
+        images, // Add images to the pitch
       });
       
       router.back();
@@ -342,6 +417,55 @@ export default function AddPitchScreen() {
           onChangeText={setNightPricing}
           keyboardType="decimal-pad"
         />
+        
+        {/* Pitch Size */}
+        <Text style={styles.label}>Pitch Size</Text>
+        <View style={styles.segmentedControl}>
+          <TouchableOpacity
+            style={[
+              styles.segment,
+              pitchSize === '5-a-side' && styles.selectedSegment
+            ]}
+            onPress={() => setPitchSize('5-a-side')}
+          >
+            <Text style={[
+              styles.segmentText,
+              pitchSize === '5-a-side' && styles.selectedSegmentText
+            ]}>
+              5-a-side
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.segment,
+              pitchSize === '7-a-side' && styles.selectedSegment
+            ]}
+            onPress={() => setPitchSize('7-a-side')}
+          >
+            <Text style={[
+              styles.segmentText,
+              pitchSize === '7-a-side' && styles.selectedSegmentText
+            ]}>
+              7-a-side
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.segment,
+              pitchSize === '9-a-side' && styles.selectedSegment
+            ]}
+            onPress={() => setPitchSize('9-a-side')}
+          >
+            <Text style={[
+              styles.segmentText,
+              pitchSize === '9-a-side' && styles.selectedSegmentText
+            ]}>
+              9-a-side
+            </Text>
+          </TouchableOpacity>
+        </View>
         
         {/* Days Available */}
         <Text style={styles.label}>Days Available</Text>

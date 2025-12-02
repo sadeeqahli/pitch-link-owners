@@ -7,9 +7,10 @@ export interface Pitch {
   description: string;
   pricePerHour: number;
   imageUrl?: string;
+  images?: string[]; // Add support for multiple images
   status: 'available' | 'maintenance'; // Remove 'booked' status
   amenities: string[];
-  size: string; // e.g., "5-a-side", "7-a-side", "11-a-side"
+  size: '5-a-side' | '7-a-side' | '9-a-side'; // Updated to use specific pitch sizes
   surfaceType: 'grass' | 'artificial' | 'concrete' | 'other';
   location: string;
   createdAt: Date;
@@ -94,6 +95,7 @@ export const usePitchStore = create<PitchState>()((set, get) => ({
           updatedAt: new Date(pitch.updatedAt),
           availability: pitch.availability || {},
           unavailableDates: pitch.unavailableDates || [],
+          images: pitch.images || [], // Ensure images array is properly initialized
         }));
         set({ pitches: parsedPitches });
       }

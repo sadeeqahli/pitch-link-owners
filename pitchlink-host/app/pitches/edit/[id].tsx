@@ -27,6 +27,7 @@ export default function EditPitchScreen() {
   const [location, setLocation] = useState('');
   const [pricePerHour, setPricePerHour] = useState('');
   const [nightPricing, setNightPricing] = useState('');
+  const [pitchSize, setPitchSize] = useState<'5-a-side' | '7-a-side' | '9-a-side'>('5-a-side');
   
   // Step 2 form state
   // Availability
@@ -134,10 +135,17 @@ export default function EditPitchScreen() {
       setDescription(pitch.description);
       setLocation(pitch.location);
       setPricePerHour(pitch.pricePerHour.toString());
+      setPitchSize(pitch.size || '5-a-side');
       
-      // Initialize images
-      if (pitch.imageUrl) {
+      // Initialize images - load all images from the pitch
+      if (pitch.images && pitch.images.length > 0) {
+        setImages(pitch.images);
+      } else if (pitch.imageUrl) {
+        // Fallback to imageUrl if images array is not available
         setImages([pitch.imageUrl]);
+      } else {
+        // Initialize with empty array if no images
+        setImages([]);
       }
       
       // Parse amenities to facilities
@@ -205,9 +213,10 @@ export default function EditPitchScreen() {
         location,
         amenities,
         surfaceType: turfType as 'grass' | 'artificial' | 'concrete' | 'other',
-        size: pitch?.size || 'Standard',
+        size: pitchSize,
         status: pitch?.status || 'available',
         imageUrl: images.length > 0 ? images[0] : pitch?.imageUrl,
+        images, // Add all images to the pitch
       });
       
       router.back();
@@ -327,6 +336,56 @@ export default function EditPitchScreen() {
               onChangeText={setNightPricing}
               keyboardType="decimal-pad"
             />
+            
+            {/* Pitch Size */}
+            <Text style={styles.label}>Pitch Size</Text>
+            <View style={styles.segmentedControl}>
+              <TouchableOpacity
+                style={[
+                  styles.segment,
+                  pitchSize === '5-a-side' && styles.selectedSegment
+                ]}
+                onPress={() => setPitchSize('5-a-side')}
+              >
+                <Text style={[
+                  styles.segmentText,
+                  pitchSize === '5-a-side' && styles.selectedSegmentText
+                ]}>
+                  5-a-side
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.segment,
+                  pitchSize === '7-a-side' && styles.selectedSegment
+                ]}
+                onPress={() => setPitchSize('7-a-side')}
+              >
+                <Text style={[
+                  styles.segmentText,
+                  pitchSize === '7-a-side' && styles.selectedSegmentText
+                ]}>
+                  7-a-side
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.segment,
+                  pitchSize === '9-a-side' && styles.selectedSegment
+                ]}
+                onPress={() => setPitchSize('9-a-side')}
+              >
+                <Text style={[
+                  styles.segmentText,
+                  pitchSize === '9-a-side' && styles.selectedSegmentText
+                ]}>
+                  9-a-side
+                </Text>
+              </TouchableOpacity>
+            </View>
+
           </>
         )}
         

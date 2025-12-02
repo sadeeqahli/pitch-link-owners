@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, TextInput, Alert } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, TextInput, Alert, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { usePitchStore } from '@/store/usePitchStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Plus, Edit, Trash, Search, BarChart } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PitchesScreen() {
   const router = useRouter();
@@ -15,6 +16,74 @@ export default function PitchesScreen() {
   const deletePitch = usePitchStore((state) => state.deletePitch);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [businessStatus, setBusinessStatus] = useState<'not_started' | 'incomplete' | 'under_review' | 'approved' | 'rejected'>('not_started');
+  const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({}); // Track current image for each pitch
+
+  // Load business verification status
+  useEffect(() => {
+    loadBusinessStatus();
+  }, []);
+
+  // Load pitches
+  useEffect(() => {
+    usePitchStore.getState().loadPitches();
+  }, []);
+
+  // Debug log to see what pitches are loaded
+  useEffect(() => {
+    console.log('Loaded pitches:', pitches);
+    // Log images for each pitch
+    pitches.forEach(pitch => {
+      console.log(`Pitch ${pitch.id}:`, {
+        name: pitch.name,
+        hasImages: !!pitch.images,
+        imagesCount: pitch.images ? pitch.images.length : 0,
+        images: pitch.images,
+        hasImageUrl: !!pitch.imageUrl,
+        imageUrl: pitch.imageUrl
+      });
+    });
+  }, [pitches]);
+
+  const loadBusinessStatus = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('businessSettings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        setBusinessStatus(settings.businessStatus || 'not_started');
+      }
+    } catch (error) {
+      console.log('Error loading business settings:', error);
+    }
+  };
+
+  const handleAddPitch = () => {
+    // Check business verification status before allowing to add pitch
+    if (businessStatus !== 'approved') {
+      showVerificationBlockingModal();
+      return;
+    }
+    
+    router.push('/pitches/add');
+  };
+
+  const showVerificationBlockingModal = () => {
+    Alert.alert(
+      'Business Verification Required',
+      'Your business is not yet verified. Complete your Business Settings to start listing pitches.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Complete Verification',
+          onPress: () => router.push('/profile/business-settings'),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   const handleDeletePitch = (id: string) => {
     Alert.alert(
@@ -75,7 +144,7 @@ export default function PitchesScreen() {
         <Text style={styles.title}>Pitches</Text>
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => router.push('/pitches/add')}
+          onPress={handleAddPitch}
         >
           <Plus color="#FFFFFF" size={20} />
           <Text style={styles.addButtonText}>Add Pitch</Text>
@@ -138,7 +207,7 @@ export default function PitchesScreen() {
           </Text>
           <TouchableOpacity 
             style={styles.emptyButton}
-            onPress={() => router.push('/pitches/add')}
+            onPress={handleAddPitch}
           >
             <Text style={styles.emptyButtonText}>Add Pitch</Text>
           </TouchableOpacity>
@@ -165,6 +234,54 @@ export default function PitchesScreen() {
                       </Text>
                     </View>
                   </View>
+                  
+                  {/* Pitch Image Gallery */}
+                  {pitch.images && pitch.images.length > 0 && (
+                    <View style={styles.pitchImageContainer}>
+                      <ScrollView 
+                        horizontal 
+                        pagingEnabled 
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.pitchImageGallery}
+                        contentContainerStyle={{ flexDirection: 'row' }}
+                        onScroll={(event) => {
+                          const offsetX = event.nativeEvent.contentOffset.x;
+                          const containerWidth = event.nativeEvent.layoutMeasurement.width;
+                          const index = Math.round(offsetX / containerWidth);
+                          setCurrentImageIndices(prev => ({
+                            ...prev,
+                            [pitch.id]: index
+                          }));
+                        }}
+                        scrollEventThrottle={16}
+                      >
+                        {pitch.images.map((image, index) => (
+                          <View key={index} style={{ width: Dimensions.get('window').width - 64, height: '100%' }}>
+                            <Image 
+                              source={{ uri: image }} 
+                              style={styles.pitchImage} 
+                              resizeMode="cover"
+                              onError={(error) => console.log('Image load error for pitch', pitch.id, 'image', image, ':', error)}
+                              onLoad={() => console.log('Image loaded successfully for pitch', pitch.id, 'image', image)}
+                            />
+                          </View>
+                        ))}
+                      </ScrollView>
+                      {pitch.images.length > 1 && (
+                        <View style={styles.indicatorContainer}>
+                          {pitch.images.map((_, index) => (
+                            <View 
+                              key={index} 
+                              style={[
+                                styles.indicator,
+                                index === (currentImageIndices[pitch.id] || 0) && styles.activeIndicator
+                              ]} 
+                            />
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  )}
                   
                   <View style={styles.pitchDetails}>
                     <View style={styles.detailRow}>
@@ -351,6 +468,44 @@ const styles = StyleSheet.create({
   pitchDescription: {
     fontSize: 14,
     color: '#CCCCCC',
+  },
+  pitchImageContainer: {
+    height: 200, // Increased from 150 to 200
+    backgroundColor: '#2A2A2A',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  pitchImageGallery: {
+    width: '100%',
+    height: '100%',
+  },
+  pitchImageWrapper: {
+    height: '100%',
+  },
+  pitchImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  indicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 8,
+    left: 0,
+    right: 0,
+  },
+  indicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 3,
+  },
+  activeIndicator: {
+    backgroundColor: '#FFFFFF',
   },
   pitchDetails: {
     gap: 8,

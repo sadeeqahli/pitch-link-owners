@@ -1,182 +1,151 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Card, CardContent } from '@/components/ui/card';
-import { LogOut, Key, User, Settings, Edit3, Phone, Mail, MapPin, HelpCircle } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { User, Settings, Bell, HelpCircle, LogOut, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
-  
-  // Form state
-  const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(user?.name || '');
-  const [bio, setBio] = useState('');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [location, setLocation] = useState('');
+  const { user, logout } = useAuthStore();
+  const [businessStatus, setBusinessStatus] = useState<'not_started' | 'incomplete' | 'under_review' | 'approved' | 'rejected'>('not_started');
+
+  // Load business verification status
+  useEffect(() => {
+    loadBusinessStatus();
+  }, []);
+
+  const loadBusinessStatus = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('businessSettings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        setBusinessStatus(settings.businessStatus || 'not_started');
+      }
+    } catch (error) {
+      console.log('Error loading business settings:', error);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
+      'Logout',
+      'Are you sure you want to logout?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: () => {
-            logout();
-          },
-        },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: logout },
       ]
     );
   };
 
-  const handleSave = () => {
-    // In a real app, this would update the user data
-    setIsEditing(false);
-    Alert.alert('Success', 'Profile updated successfully');
+  const getStatusColor = () => {
+    switch (businessStatus) {
+      case 'approved': return '#00FF88';
+      case 'rejected': return '#FF4444';
+      default: return '#FFA500';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (businessStatus) {
+      case 'not_started': return 'Not Started';
+      case 'incomplete': return 'Incomplete';
+      case 'under_review': return 'Under Review';
+      case 'approved': return 'Approved';
+      case 'rejected': return 'Rejected';
+      default: return 'Not Started';
+    }
+  };
+
+  const getStatusIcon = () => {
+    switch (businessStatus) {
+      case 'approved': return <CheckCircle color={getStatusColor()} size={20} />;
+      case 'rejected': return <XCircle color={getStatusColor()} size={20} />;
+      default: return <AlertCircle color={getStatusColor()} size={20} />;
+    }
+  };
+
+  const handleViewVerificationStatus = () => {
+    if (businessStatus === 'under_review') {
+      router.push('/profile/verification-loading');
+    } else {
+      router.push('/profile/business-settings');
+    }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity 
-          style={styles.editButton}
-          onPress={() => setIsEditing(!isEditing)}
-        >
-          <Edit3 color="#00FF88" size={20} />
-          <Text style={styles.editButtonText}>{isEditing ? 'Cancel' : 'Edit'}</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView}>
-        {/* Profile Picture */}
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {name?.charAt(0).toUpperCase() || 'U'}
-            </Text>
+        {/* Profile Header */}
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarContainer}>
+            <User color="#FFFFFF" size={40} />
           </View>
+          <Text style={styles.userName}>{user?.name || 'User'}</Text>
+          <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
         </View>
 
-        {/* Name */}
-        <View style={styles.nameContainer}>
-          <Text style={styles.userName}>{name || 'User'}</Text>
-        </View>
-
-        {/* Bio */}
-        <View style={styles.bioContainer}>
-          <TextInput
-            style={styles.bioInput}
-            value={bio}
-            onChangeText={setBio}
-            placeholder="Add a bio..."
-            placeholderTextColor="#888888"
-            multiline
-            editable={isEditing}
-          />
-        </View>
-
-        {/* Bookings Section */}
+        {/* Business Verification Status */}
         <Card style={styles.sectionCard}>
           <CardContent style={styles.sectionContent}>
-            <Text style={styles.sectionTitle}>Bookings</Text>
-            <Text style={styles.sectionDescription}>Manage your bookings and reservations</Text>
+            <Text style={styles.sectionTitle}>Business Verification</Text>
+            
+            <TouchableOpacity 
+              style={styles.statusContainer}
+              onPress={handleViewVerificationStatus}
+            >
+              <View style={styles.statusLeft}>
+                {getStatusIcon()}
+                <View>
+                  <Text style={styles.statusText}>{getStatusText()}</Text>
+                  <Text style={styles.statusDescription}>
+                    {businessStatus === 'under_review' 
+                      ? 'Tap to view progress'
+                      : businessStatus === 'approved'
+                      ? 'Business verified'
+                      : 'Complete verification to list pitches'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.arrow}>›</Text>
+            </TouchableOpacity>
           </CardContent>
         </Card>
 
-        {/* Personal Information */}
+        {/* Account Settings */}
         <Card style={styles.sectionCard}>
           <CardContent style={styles.sectionContent}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
+            <Text style={styles.sectionTitle}>Account Settings</Text>
             
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <User color="#00FF88" size={16} />
+            <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/profile/notifications')}>
+              <View style={styles.settingsLeft}>
+                <Bell color="#00FF88" size={20} />
+                <Text style={styles.settingsText}>Notifications</Text>
               </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Full Name</Text>
-                <TextInput
-                  style={styles.infoInput}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Enter your name"
-                  placeholderTextColor="#888888"
-                  editable={isEditing}
-                />
-              </View>
-            </View>
+              <Text style={styles.settingsArrow}>›</Text>
+            </TouchableOpacity>
             
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <Phone color="#00FF88" size={16} />
+            <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/profile/general-settings')}>
+              <View style={styles.settingsLeft}>
+                <Settings color="#00FF88" size={20} />
+                <Text style={styles.settingsText}>General Settings</Text>
               </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Phone Number</Text>
-                <TextInput
-                  style={styles.infoInput}
-                  value={phone}
-                  onChangeText={setPhone}
-                  placeholder="Enter your phone number"
-                  placeholderTextColor="#888888"
-                  keyboardType="phone-pad"
-                  editable={isEditing}
-                />
-              </View>
-            </View>
+              <Text style={styles.settingsArrow}>›</Text>
+            </TouchableOpacity>
             
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <Mail color="#00FF88" size={16} />
+            <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/profile/business-settings')}>
+              <View style={styles.settingsLeft}>
+                <Settings color="#00FF88" size={20} />
+                <Text style={styles.settingsText}>Business Settings</Text>
               </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Email Address</Text>
-                <TextInput
-                  style={styles.infoInput}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#888888"
-                  keyboardType="email-address"
-                  editable={isEditing}
-                />
-              </View>
-            </View>
-            
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <MapPin color="#00FF88" size={16} />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Location</Text>
-                <TextInput
-                  style={styles.infoInput}
-                  value={location}
-                  onChangeText={setLocation}
-                  placeholder="Enter your location"
-                  placeholderTextColor="#888888"
-                  editable={isEditing}
-                />
-              </View>
-            </View>
-            
-            {isEditing && (
-              <TouchableOpacity 
-                style={styles.saveButton}
-                onPress={handleSave}
-              >
-                <Text style={styles.saveButtonText}>Save Changes</Text>
-              </TouchableOpacity>
-            )}
+              <Text style={styles.settingsArrow}>›</Text>
+            </TouchableOpacity>
           </CardContent>
         </Card>
 
@@ -226,53 +195,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  editButton: {
-    flexDirection: 'row',
+  profileHeader: {
     alignItems: 'center',
-    gap: 8,
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#1E1E1E',
-  },
-  editButtonText: {
-    color: '#00FF88',
-    fontWeight: '600',
+    padding: 32,
+    gap: 12,
   },
   avatarContainer: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#00FF88',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#1E1E1E',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  nameContainer: {
-    alignItems: 'center',
-    marginBottom: 10,
   },
   userName: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  bioContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  bioInput: {
+  userEmail: {
     fontSize: 16,
-    color: '#CCCCCC',
-    textAlign: 'center',
-    minHeight: 40,
+    color: '#888888',
   },
   sectionCard: {
     margin: 16,
@@ -286,53 +229,60 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#888888',
+  statusContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
   },
-  infoRow: {
+  statusLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  infoIconContainer: {
-    width: 30,
-    alignItems: 'center',
-  },
-  infoTextContainer: {
+    gap: 12,
     flex: 1,
   },
-  infoLabel: {
-    fontSize: 12,
-    color: '#888888',
-    marginBottom: 4,
-  },
-  infoInput: {
+  statusText: {
     fontSize: 16,
     color: '#FFFFFF',
-    paddingVertical: 8,
+    fontWeight: '500',
+  },
+  statusDescription: {
+    fontSize: 14,
+    color: '#888888',
+    marginTop: 2,
+  },
+  arrow: {
+    fontSize: 24,
+    color: '#888888',
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#333333',
   },
-  saveButton: {
-    height: 50,
-    backgroundColor: '#00FF88',
-    borderRadius: 8,
-    justifyContent: 'center',
+  settingsLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    gap: 12,
   },
-  saveButtonText: {
-    color: '#000000',
-    fontWeight: '600',
+  settingsText: {
     fontSize: 16,
+    color: '#FFFFFF',
+  },
+  settingsArrow: {
+    fontSize: 24,
+    color: '#888888',
   },
   supportRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 16,
   },
   supportLeft: {
     flexDirection: 'row',
@@ -349,18 +299,18 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 12,
-    height: 50,
     margin: 16,
-    marginTop: 0,
-    borderRadius: 8,
+    padding: 16,
     backgroundColor: '#1E1E1E',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#FF4444',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   logoutText: {
+    fontSize: 16,
     color: '#FF4444',
     fontWeight: '600',
   },

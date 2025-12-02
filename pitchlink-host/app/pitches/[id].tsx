@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { usePitchStore } from '@/store/usePitchStore';
@@ -14,8 +14,15 @@ export default function PitchAnalyticsScreen() {
   const deletePitch = usePitchStore((state) => state.deletePitch);
   const updatePitch = usePitchStore((state) => state.updatePitch);
   
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
   const pitch = pitches.find((p) => p.id === id);
   
+  // Reset current image index when images change
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [pitch?.images]);
+
   if (!pitch) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -90,6 +97,48 @@ export default function PitchAnalyticsScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
+        {/* Image Gallery */}
+        {pitch.images && pitch.images.length > 0 && (
+          <View style={styles.imageGalleryContainer}>
+            <ScrollView 
+              horizontal 
+              pagingEnabled 
+              showsHorizontalScrollIndicator={false}
+              style={styles.imageGallery}
+              onScroll={(event) => {
+                const offsetX = event.nativeEvent.contentOffset.x;
+                const containerWidth = Dimensions.get('window').width - 32;
+                const index = Math.round(offsetX / containerWidth);
+                setCurrentImageIndex(index);
+              }}
+              scrollEventThrottle={16}
+            >
+              {pitch.images.map((image, index) => (
+                <View key={index} style={styles.imageContainer}>
+                  <Image 
+                    source={{ uri: image }} 
+                    style={styles.image} 
+                    resizeMode="cover"
+                  />
+                </View>
+              ))}
+            </ScrollView>
+            {pitch.images.length > 1 && (
+              <View style={styles.indicatorContainer}>
+                {pitch.images.map((_, index) => (
+                  <View 
+                    key={index} 
+                    style={[
+                      styles.indicator,
+                      index === currentImageIndex && styles.activeIndicator
+                    ]} 
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+        
         {/* Status Toggle */}
         <Card style={styles.statusCard}>
           <CardContent style={styles.cardContent}>
@@ -462,4 +511,47 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
   },
+  imageGalleryContainer: {
+    width: '100%',
+    height: 300,
+    marginBottom: 16,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  imageGallery: {
+    width: '100%',
+    height: '100%',
+  },
+  imageContainer: {
+    width: Dimensions.get('window').width - 32,
+    height: '100%',
+    padding: 8,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  indicatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  indicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#888888',
+    marginHorizontal: 4,
+  },
+  activeIndicator: {
+    backgroundColor: '#00FF88',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+
 });
