@@ -270,59 +270,113 @@ export default function BookingDetailScreen() {
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Status</Text>
-              <View style={styles.statusContainer}>
-                <TouchableOpacity 
-                  style={[
-                    styles.statusOption,
-                    booking.status === 'confirmed' && styles.statusOptionSelected
-                  ]}
-                  onPress={() => handleStatusChange('confirmed')}
-                >
-                  <Text style={[
-                    styles.statusOptionText,
-                    booking.status === 'confirmed' && styles.statusOptionTextSelected
-                  ]}>Confirmed</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[
-                    styles.statusOption,
-                    booking.status === 'ongoing' && styles.statusOptionSelected
-                  ]}
-                  onPress={() => handleStatusChange('ongoing')}
-                >
-                  <Text style={[
-                    styles.statusOptionText,
-                    booking.status === 'ongoing' && styles.statusOptionTextSelected
-                  ]}>Ongoing</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[
-                    styles.statusOption,
-                    booking.status === 'completed' && styles.statusOptionSelected
-                  ]}
-                  onPress={() => handleStatusChange('completed')}
-                >
-                  <Text style={[
-                    styles.statusOptionText,
-                    booking.status === 'completed' && styles.statusOptionTextSelected
-                  ]}>Completed</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[
-                    styles.statusOption,
-                    booking.status === 'cancelled' && styles.statusOptionSelected
-                  ]}
-                  onPress={() => handleStatusChange('cancelled')}
-                >
-                  <Text style={[
-                    styles.statusOptionText,
-                    booking.status === 'cancelled' && styles.statusOptionTextSelected
-                  ]}>Cancelled</Text>
-                </TouchableOpacity>
-              </View>
+              {booking.source === 'manual' ? (
+                // For manual bookings, show status as read-only
+                <View style={styles.statusContainer}>
+                  <View 
+                    style={[
+                      styles.statusOption,
+                      booking.status === 'confirmed' && styles.statusOptionSelected
+                    ]}
+                  >
+                    <Text style={[
+                      styles.statusOptionText,
+                      booking.status === 'confirmed' && styles.statusOptionTextSelected
+                    ]}>Confirmed</Text>
+                  </View>
+                  
+                  <View 
+                    style={[
+                      styles.statusOption,
+                      booking.status === 'ongoing' && styles.statusOptionSelected
+                    ]}
+                  >
+                    <Text style={[
+                      styles.statusOptionText,
+                      booking.status === 'ongoing' && styles.statusOptionTextSelected
+                    ]}>Ongoing</Text>
+                  </View>
+                  
+                  <View 
+                    style={[
+                      styles.statusOption,
+                      booking.status === 'completed' && styles.statusOptionSelected
+                    ]}
+                  >
+                    <Text style={[
+                      styles.statusOptionText,
+                      booking.status === 'completed' && styles.statusOptionTextSelected
+                    ]}>Completed</Text>
+                  </View>
+                  
+                  <View 
+                    style={[
+                      styles.statusOption,
+                      booking.status === 'cancelled' && styles.statusOptionSelected
+                    ]}
+                  >
+                    <Text style={[
+                      styles.statusOptionText,
+                      booking.status === 'cancelled' && styles.statusOptionTextSelected
+                    ]}>Cancelled</Text>
+                  </View>
+                </View>
+              ) : (
+                // For player app bookings, keep the interactive status options
+                <View style={styles.statusContainer}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.statusOption,
+                      booking.status === 'confirmed' && styles.statusOptionSelected
+                    ]}
+                    onPress={() => handleStatusChange('confirmed')}
+                  >
+                    <Text style={[
+                      styles.statusOptionText,
+                      booking.status === 'confirmed' && styles.statusOptionTextSelected
+                    ]}>Confirmed</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[
+                      styles.statusOption,
+                      booking.status === 'ongoing' && styles.statusOptionSelected
+                    ]}
+                    onPress={() => handleStatusChange('ongoing')}
+                  >
+                    <Text style={[
+                      styles.statusOptionText,
+                      booking.status === 'ongoing' && styles.statusOptionTextSelected
+                    ]}>Ongoing</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[
+                      styles.statusOption,
+                      booking.status === 'completed' && styles.statusOptionSelected
+                    ]}
+                    onPress={() => handleStatusChange('completed')}
+                  >
+                    <Text style={[
+                      styles.statusOptionText,
+                      booking.status === 'completed' && styles.statusOptionTextSelected
+                    ]}>Completed</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[
+                      styles.statusOption,
+                      booking.status === 'cancelled' && styles.statusOptionSelected
+                    ]}
+                    onPress={() => handleStatusChange('cancelled')}
+                  >
+                    <Text style={[
+                      styles.statusOptionText,
+                      booking.status === 'cancelled' && styles.statusOptionTextSelected
+                    ]}>Cancelled</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </CardContent>
         </Card>

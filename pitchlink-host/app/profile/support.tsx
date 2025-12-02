@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Card, CardContent } from '@/components/ui/card';
@@ -36,13 +36,22 @@ export default function SupportScreen() {
   };
 
   const handleReportBug = () => {
-    // In a real app, this would open a bug reporting form
-    console.log('Reporting a bug');
+    // Navigate to feedback page
+    router.push('/profile/feedback');
   };
 
   const handleRateApp = () => {
-    // In a real app, this would open the app store rating page
-    console.log('Rating the app');
+    // Show alert about rating the app
+    Alert.alert(
+      'Rate the App',
+      'You can rate this app in Play Store or App Store',
+      [
+        {
+          text: 'OK',
+          style: 'default'
+        }
+      ]
+    );
   };
 
   return (

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Card, CardContent } from '@/components/ui/card';
-import { LogOut, Key, User, Settings, Edit3, Phone, Mail, MapPin, HelpCircle, Bell } from 'lucide-react-native';
+import { LogOut, Key, User, Settings, Edit3, Phone, Mail, MapPin, HelpCircle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
@@ -180,19 +180,6 @@ export default function ProfileScreen() {
           </CardContent>
         </Card>
 
-        {/* Notifications Settings */}
-        <Card style={styles.sectionCard}>
-          <CardContent style={styles.sectionContent}>
-            <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/profile/notifications')}>
-              <View style={styles.settingsLeft}>
-                <Bell color="#00FF88" size={20} />
-                <Text style={styles.settingsText}>Notifications</Text>
-              </View>
-              <Text style={styles.settingsArrow}>›</Text>
-            </TouchableOpacity>
-          </CardContent>
-        </Card>
-
         {/* Support Section */}
         <Card style={styles.sectionCard}>
           <CardContent style={styles.sectionContent}>
@@ -341,25 +328,6 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: '600',
     fontSize: 16,
-  },
-  settingsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  settingsLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  settingsText: {
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  settingsArrow: {
-    fontSize: 24,
-    color: '#888888',
   },
   supportRow: {
     flexDirection: 'row',

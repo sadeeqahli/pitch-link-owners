@@ -3,14 +3,16 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Card, CardContent } from '@/components/ui/card';
-import { LogOut, Key, User, Settings, Edit3, Phone, Mail, MapPin, HelpCircle, Camera } from 'lucide-react-native';
+import { LogOut, Key, User, Settings, Edit3, Phone, Mail, MapPin, HelpCircle, Camera, Bell } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useDynamicStyles } from '@/hooks/use-dynamic-styles';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const { dynamicStyles } = useDynamicStyles();
   
   // Form state
   const [isEditing, setIsEditing] = useState(false);
@@ -107,6 +109,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: () => {
             logout();
+            router.replace('/login');
           },
         },
       ]
@@ -166,14 +169,6 @@ export default function ProfileScreen() {
             editable={isEditing}
           />
         </View>
-
-        {/* Bookings Section */}
-        <Card style={styles.sectionCard}>
-          <CardContent style={styles.sectionContent}>
-            <Text style={styles.sectionTitle}>Bookings</Text>
-            <Text style={styles.sectionDescription}>Manage your bookings and reservations</Text>
-          </CardContent>
-        </Card>
 
         {/* Personal Information */}
         <Card style={styles.sectionCard}>
@@ -274,7 +269,15 @@ export default function ProfileScreen() {
               <Text style={styles.settingsArrow}>›</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.settingsRow}>
+            <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/profile/notifications')}>
+              <View style={styles.settingsLeft}>
+                <Bell color="#00FF88" size={20} />
+                <Text style={styles.settingsText}>Notifications</Text>
+              </View>
+              <Text style={styles.settingsArrow}>›</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/profile/general-settings')}>
               <View style={styles.settingsLeft}>
                 <Settings color="#00FF88" size={20} />
                 <Text style={styles.settingsText}>General Settings</Text>
@@ -282,7 +285,7 @@ export default function ProfileScreen() {
               <Text style={styles.settingsArrow}>›</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.settingsRow}>
+            <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/profile/business-settings')}>
               <View style={styles.settingsLeft}>
                 <Settings color="#00FF88" size={20} />
                 <Text style={styles.settingsText}>Business Settings</Text>

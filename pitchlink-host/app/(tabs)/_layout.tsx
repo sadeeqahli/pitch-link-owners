@@ -20,6 +20,13 @@ export default function TabLayout() {
           backgroundColor: 'transparent',
         },
         headerShadowVisible: false,
+        // Customize tab bar style to match app UI
+        tabBarStyle: {
+          backgroundColor: '#0A0A0A', // Match app background
+          borderTopColor: '#1E1E1E', // Match card color
+          borderTopWidth: 1,
+        },
+        tabBarInactiveTintColor: '#CCCCCC', // Match inactive icon color from Colors.ts
       }}>
       <Tabs.Screen
         name="index"

@@ -1,17 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Card, CardContent } from '@/components/ui/card';
-import { Bell, Calendar, CreditCard, MessageSquare, Info } from 'lucide-react-native';
+import { Bell, Calendar, CreditCard } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function NotificationSettingsScreen() {
   const router = useRouter();
   
   // Notification settings state
   const [pushNotifications, setPushNotifications] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [smsNotifications, setSmsNotifications] = useState(false);
   
   // Booking notifications
   const [bookingReminders, setBookingReminders] = useState(true);
@@ -22,18 +21,55 @@ export default function NotificationSettingsScreen() {
   const [paymentReceived, setPaymentReceived] = useState(true);
   const [paymentFailed, setPaymentFailed] = useState(true);
   
-  // System notifications
-  const [maintenanceAlerts, setMaintenanceAlerts] = useState(true);
-  const [promotionalOffers, setPromotionalOffers] = useState(false);
-  
   // Time-based settings
   const [quietHoursEnabled, setQuietHoursEnabled] = useState(false);
   const [quietStartHour, setQuietStartHour] = useState('22:00');
   const [quietEndHour, setQuietEndHour] = useState('08:00');
 
-  const handleSaveSettings = () => {
-    // In a real app, this would save to a backend or local storage
-    Alert.alert('Success', 'Notification settings saved successfully');
+  // Load saved notification settings
+  useEffect(() => {
+    loadNotificationSettings();
+  }, []);
+
+  const loadNotificationSettings = async () => {
+    try {
+      const savedSettings = await AsyncStorage.getItem('notificationSettings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        setPushNotifications(settings.pushNotifications ?? true);
+        setBookingReminders(settings.bookingReminders ?? true);
+        setBookingConfirmations(settings.bookingConfirmations ?? true);
+        setBookingCancellations(settings.bookingCancellations ?? true);
+        setPaymentReceived(settings.paymentReceived ?? true);
+        setPaymentFailed(settings.paymentFailed ?? true);
+        setQuietHoursEnabled(settings.quietHoursEnabled ?? false);
+        setQuietStartHour(settings.quietStartHour ?? '22:00');
+        setQuietEndHour(settings.quietEndHour ?? '08:00');
+      }
+    } catch (error) {
+      console.log('Error loading notification settings:', error);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      const settings = {
+        pushNotifications,
+        bookingReminders,
+        bookingConfirmations,
+        bookingCancellations,
+        paymentReceived,
+        paymentFailed,
+        quietHoursEnabled,
+        quietStartHour,
+        quietEndHour,
+      };
+      await AsyncStorage.setItem('notificationSettings', JSON.stringify(settings));
+      Alert.alert('Success', 'Notification settings saved successfully');
+    } catch (error) {
+      console.log('Error saving notification settings:', error);
+      Alert.alert('Error', 'Failed to save notification settings');
+    }
   };
 
   return (
@@ -68,40 +104,6 @@ export default function NotificationSettingsScreen() {
                 ios_backgroundColor="#3e3e3e"
                 onValueChange={setPushNotifications}
                 value={pushNotifications}
-              />
-            </View>
-            
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <MessageSquare color="#00FF88" size={20} />
-                <View>
-                  <Text style={styles.settingLabel}>Email Notifications</Text>
-                  <Text style={styles.settingDescription}>Receive notifications via email</Text>
-                </View>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#00FF88' }}
-                thumbColor={emailNotifications ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={setEmailNotifications}
-                value={emailNotifications}
-              />
-            </View>
-            
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <MessageSquare color="#00FF88" size={20} />
-                <View>
-                  <Text style={styles.settingLabel}>SMS Notifications</Text>
-                  <Text style={styles.settingDescription}>Receive notifications via text message</Text>
-                </View>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#00FF88' }}
-                thumbColor={smsNotifications ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={setSmsNotifications}
-                value={smsNotifications}
               />
             </View>
           </CardContent>
@@ -201,47 +203,6 @@ export default function NotificationSettingsScreen() {
                 ios_backgroundColor="#3e3e3e"
                 onValueChange={setPaymentFailed}
                 value={paymentFailed}
-              />
-            </View>
-          </CardContent>
-        </Card>
-        
-        {/* System Notifications */}
-        <Card style={styles.sectionCard}>
-          <CardContent style={styles.sectionContent}>
-            <Text style={styles.sectionTitle}>System Notifications</Text>
-            
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <Info color="#00FF88" size={20} />
-                <View>
-                  <Text style={styles.settingLabel}>Maintenance Alerts</Text>
-                  <Text style={styles.settingDescription}>Get notified about system maintenance</Text>
-                </View>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#00FF88' }}
-                thumbColor={maintenanceAlerts ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={setMaintenanceAlerts}
-                value={maintenanceAlerts}
-              />
-            </View>
-            
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <Info color="#00FF88" size={20} />
-                <View>
-                  <Text style={styles.settingLabel}>Promotional Offers</Text>
-                  <Text style={styles.settingDescription}>Receive promotional offers and updates</Text>
-                </View>
-              </View>
-              <Switch
-                trackColor={{ false: '#767577', true: '#00FF88' }}
-                thumbColor={promotionalOffers ? '#FFFFFF' : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={setPromotionalOffers}
-                value={promotionalOffers}
               />
             </View>
           </CardContent>

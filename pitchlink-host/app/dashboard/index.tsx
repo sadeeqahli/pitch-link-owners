@@ -35,12 +35,62 @@ const BarChart = ({ data }: { data: { label: string; value: number }[] }) => {
   );
 };
 
+// Helper function to format time ago
+const formatTimeAgo = (date: Date) => {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return 'Just now';
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes}m ago`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours}h ago`;
+  } else {
+    const days = Math.floor(diffInSeconds / 86400);
+    return `${days}d ago`;
+  }
+};
+
 export default function DashboardScreen() {
   const router = useRouter();
   const bookings = useBookingStore((state) => state.bookings);
   const payments = usePaymentStore((state) => state.payments);
   const pitches = usePitchStore((state) => state.pitches);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Combine bookings and payments into a single recent activity feed
+  const recentActivity = React.useMemo(() => {
+    // Create activity items from payments
+    const paymentActivities = payments.map(payment => ({
+      id: `payment-${payment.id}`,
+      type: 'payment' as const,
+      title: 'Payment received',
+      amount: payment.amount,
+      timestamp: payment.createdAt,
+      onPress: () => router.push(`/payments/${payment.id}`)
+    }));
+    
+    // Create activity items from bookings
+    const bookingActivities = bookings.map(booking => ({
+      id: `booking-${booking.id}`,
+      type: 'booking' as const,
+      title: 'Booking confirmed',
+      amount: booking.totalPrice,
+      pitchId: booking.pitchId,
+      timestamp: booking.createdAt,
+      onPress: () => router.push(`/bookings/${booking.id}`)
+    }));
+    
+    // Combine and sort by timestamp (most recent first)
+    const combinedActivities = [...paymentActivities, ...bookingActivities]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 5); // Show only the 5 most recent activities
+    
+    return combinedActivities;
+  }, [bookings, payments, router]);
 
   // Calculate dashboard metrics
   const totalEarnings = usePaymentStore((state) => state.getTotalRevenue());
@@ -229,41 +279,34 @@ export default function DashboardScreen() {
             <Text style={styles.sectionTitle}>Recent Activity</Text>
             
             <View style={styles.activityList}>
-              {payments.slice(0, 3).map((payment) => (
+              {recentActivity.map(activity => (
                 <TouchableOpacity 
-                  key={`payment-${payment.id}`} 
+                  key={activity.id} 
                   style={styles.activityItem}
-                  onPress={() => router.push(`/payments/${payment.id}`)}
+                  onPress={activity.onPress}
                 >
                   <View style={styles.activityIconContainer}>
-                    <IconSymbol name="creditcard.fill" size={16} color="#00FF88" />
+                    <IconSymbol 
+                      name={activity.type === 'payment' ? 'creditcard.fill' : 'calendar.badge.clock'} 
+                      size={16} 
+                      color="#00FF88" 
+                    />
                   </View>
                   <View style={styles.activityDetails}>
-                    <Text style={styles.activityTitle}>Payment received</Text>
-                    <Text style={styles.activityAmount}>₦{payment.amount.toFixed(2)}</Text>
+                    <Text style={styles.activityTitle}>{activity.title}</Text>
+                    <Text style={styles.activityAmount}>
+                      {activity.type === 'payment' 
+                        ? `₦${activity.amount.toFixed(2)}` 
+                        : `Pitch #${activity.pitchId}`}
+                    </Text>
                   </View>
-                  <Text style={styles.activityTime}>2h ago</Text>
+                  <Text style={styles.activityTime}>
+                    {formatTimeAgo(activity.timestamp)}
+                  </Text>
                 </TouchableOpacity>
               ))}
               
-              {bookings.slice(0, 3).map((booking) => (
-                <TouchableOpacity 
-                  key={`booking-${booking.id}`} 
-                  style={styles.activityItem}
-                  onPress={() => router.push(`/bookings/${booking.id}`)}
-                >
-                  <View style={styles.activityIconContainer}>
-                    <IconSymbol name="calendar.badge.clock" size={16} color="#00FF88" />
-                  </View>
-                  <View style={styles.activityDetails}>
-                    <Text style={styles.activityTitle}>Booking confirmed</Text>
-                    <Text style={styles.activityAmount}>Pitch #{booking.pitchId}</Text>
-                  </View>
-                  <Text style={styles.activityTime}>5h ago</Text>
-                </TouchableOpacity>
-              ))}
-              
-              {payments.length === 0 && bookings.length === 0 && (
+              {recentActivity.length === 0 && (
                 <View style={styles.emptyActivity}>
                   <Text style={styles.emptyActivityText}>No recent activity</Text>
                 </View>
@@ -496,12 +539,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   activityList: {
-    gap: 16,
+    gap: 20,
   },
   activityItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    paddingVertical: 8,
   },
   activityIconContainer: {
     width: 32,

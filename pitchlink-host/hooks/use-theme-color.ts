@@ -1,16 +1,16 @@
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * Custom hook to get theme colors based on the app's theme settings
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAppTheme } from '@/contexts/ThemeContext';
 
 export function useThemeColor(
   props: { light?: string; dark?: string },
   colorName: keyof typeof Colors.light & keyof typeof Colors.dark
 ) {
-  const theme = useColorScheme() ?? 'light';
+  const { isDarkMode } = useAppTheme();
+  const theme = isDarkMode ? 'dark' : 'light';
   const colorFromProps = props[theme];
 
   if (colorFromProps) {

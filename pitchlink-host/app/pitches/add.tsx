@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   stepContent: {
-    gap: 20,
+    gap: 24,
   },
   stepTitle: {
     fontSize: 22,
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   imageUploadContainer: {
     flexDirection: 'row',
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888888',
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 24,
     fontStyle: 'italic',
   },
   buttonContainer: {
