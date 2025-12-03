@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { clearUserData } from '@/utils/clearUserData';
 
 interface User {
   id: string;
@@ -41,21 +40,22 @@ export const useAuthStore = create<AuthState>()((set) => ({
       try {
         // Check if user exists in storage
         const storedUser = await AsyncStorage.getItem('user');
+        const storedPassword = await AsyncStorage.getItem('password');
         
-        if (storedUser) {
+        if (storedUser && storedPassword) {
           const user = JSON.parse(storedUser);
+          const savedPassword = JSON.parse(storedPassword);
           
           // Normalize emails for comparison (trim whitespace and convert to lowercase)
           const normalizedStoredEmail = user.email?.trim().toLowerCase() || '';
           const normalizedInputEmail = email.trim().toLowerCase();
           
-          // In a real app, you would validate the password here
-          // For demo, we'll just check if the email matches
-          if (normalizedStoredEmail === normalizedInputEmail) {
+          // Check if email matches and password is correct
+          if (normalizedStoredEmail === normalizedInputEmail && savedPassword === password) {
             set({ user, isAuthenticated: true });
             return true;
           } else {
-            // User exists but email doesn't match
+            // User exists but credentials don't match
             return false;
           }
         } else {
@@ -73,6 +73,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
   logout: () => {
     set({ user: null, isAuthenticated: false });
     AsyncStorage.removeItem('user');
+    AsyncStorage.removeItem('password');
   },
   
   register: async (userData) => {
@@ -94,11 +95,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
         ownerType,
       };
       
-      // Clear all existing data for the new user to ensure a clean start
-      await clearUserData();
-      
       set({ user, isAuthenticated: true });
       await AsyncStorage.setItem('user', JSON.stringify(user));
+      await AsyncStorage.setItem('password', JSON.stringify(password)); // Store password separately
       return true;
     }
     return false;

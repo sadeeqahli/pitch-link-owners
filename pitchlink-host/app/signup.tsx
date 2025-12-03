@@ -146,7 +146,7 @@ export default function SignupScreen() {
     
     setLoading(true);
     try {
-      // Pass all user data to the register function
+      // Pass all user data to the register function (without country)
       const success = await register({
         name,
         email,
@@ -156,7 +156,6 @@ export default function SignupScreen() {
         businessName,
         numberOfPitches,
         ownerType,
-        country,
       });
       
       if (success) {
