@@ -25,11 +25,11 @@ function RootLayoutContent() {
 
   return (
     <NavigationThemeProvider value={theme}>
-      <Stack>
+      <Stack screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: false }} />
           </>
         ) : (
           <>

@@ -10,6 +10,19 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { BarChart } from 'lucide-react-native';
 
+// Define types for activity items
+type ActivityType = 'payment' | 'booking' | 'receipt';
+
+interface ActivityItem {
+  id: string;
+  type: ActivityType;
+  title: string;
+  amount: number;
+  timestamp: Date;
+  pitchId?: string;
+  onPress: () => void;
+}
+
 // Simple Bar Chart Component
 const BarChartComponent = ({ data }: { data: { label: string; value: number }[] }) => {
   const maxValue = Math.max(...data.map(item => item.value), 1);
@@ -46,8 +59,8 @@ export default function DashboardScreen() {
   // Check if user is new (no data)
   const isNewUser = bookings.length === 0 && payments.length === 0 && pitches.length === 0;
 
-  // Combine bookings and payments into a single recent activity feed
-  const recentActivity = React.useMemo(() => {
+  // Combine bookings, payments, and receipts into a single recent activity feed
+  const recentActivity = React.useMemo<ActivityItem[]>(() => {
     // Create activity items from payments
     const paymentActivities = payments.map(payment => ({
       id: `payment-${payment.id}`,
@@ -69,8 +82,20 @@ export default function DashboardScreen() {
       onPress: () => router.push(`/bookings/${booking.id}`)
     }));
     
+    // Create activity items specifically for receipts (paid player app payments)
+    const receiptActivities = payments
+      .filter(payment => payment.status === 'paid' && payment.source === 'player-app')
+      .map(payment => ({
+        id: `receipt-${payment.id}`,
+        type: 'receipt' as const,
+        title: 'New receipt generated',
+        amount: payment.amount * 0.9, // After 10% platform fee
+        timestamp: payment.createdAt,
+        onPress: () => router.push(`/payments/${payment.id}`)
+      }));
+    
     // Combine and sort by timestamp (most recent first)
-    const combinedActivities = [...paymentActivities, ...bookingActivities]
+    const combinedActivities = [...paymentActivities, ...bookingActivities, ...receiptActivities]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 5); // Show only the 5 most recent activities
     
@@ -195,7 +220,7 @@ export default function DashboardScreen() {
               </Card>
             </View>
 
-            {/* Quick Actions */}
+            {/* Get Started Card - Keep this for new users */}
             <Card style={styles.sectionCard}>
               <CardContent style={styles.sectionCardContent}>
                 <Text style={styles.sectionTitle}>Get Started</Text>
@@ -289,6 +314,49 @@ export default function DashboardScreen() {
                         <Text style={styles.nextMatchPitch}>Pitch #{nextMatch.pitchId}</Text>
                       </View>
                     </View>
+                  </View>
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Recent Activity */}
+            {recentActivity.length > 0 && (
+              <Card style={styles.sectionCard}>
+                <CardContent style={styles.sectionCardContent}>
+                  <Text style={styles.sectionTitle}>Recent Activity</Text>
+                  <Text style={styles.sectionSubtitle}>Latest transactions and bookings</Text>
+                  
+                  <View style={styles.activityList}>
+                    {recentActivity.map((activity) => (
+                      <TouchableOpacity 
+                        key={activity.id} 
+                        style={styles.activityItem}
+                        onPress={activity.onPress}
+                      >
+                        <View style={styles.activityIconContainer}>
+                          <IconSymbol 
+                            name={
+                              activity.type === 'payment' ? 'creditcard.fill' :
+                              activity.type === 'receipt' ? 'doc.text.fill' :
+                              'calendar'
+                            } 
+                            size={20} 
+                            color="#00FF88" 
+                          />
+                        </View>
+                        
+                        <View style={styles.activityContent}>
+                          <Text style={styles.activityTitle}>{activity.title}</Text>
+                          <Text style={styles.activityTimestamp}>
+                            {new Date(activity.timestamp).toLocaleString()}
+                          </Text>
+                        </View>
+                        
+                        <Text style={styles.activityAmount}>
+                          ₦{activity.amount.toFixed(2)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 </CardContent>
               </Card>
@@ -490,5 +558,42 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: '600',
     fontSize: 16,
+  },
+  activityList: {
+    marginTop: 16,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+  },
+  activityIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  activityTimestamp: {
+    fontSize: 12,
+    color: '#888888',
+  },
+  activityAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#00FF88',
   },
 });
