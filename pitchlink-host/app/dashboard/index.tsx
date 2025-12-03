@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useBookingStore } from '@/store/useBookingStore';
 import { usePaymentStore } from '@/store/usePaymentStore';
 import { usePitchStore } from '@/store/usePitchStore';
 import { Card, CardContent } from '@/components/ui/card';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
-import BlankDashboardScreen from './blank';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { BarChart } from 'lucide-react-native';
 
 // Simple Bar Chart Component
-const BarChart = ({ data }: { data: { label: string; value: number }[] }) => {
+const BarChartComponent = ({ data }: { data: { label: string; value: number }[] }) => {
   const maxValue = Math.max(...data.map(item => item.value), 1);
   
   return (
@@ -36,25 +36,6 @@ const BarChart = ({ data }: { data: { label: string; value: number }[] }) => {
   );
 };
 
-// Helper function to format time ago
-const formatTimeAgo = (date: Date) => {
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
-  if (diffInSeconds < 60) {
-    return 'Just now';
-  } else if (diffInSeconds < 3600) {
-    const minutes = Math.floor(diffInSeconds / 60);
-    return `${minutes}m ago`;
-  } else if (diffInSeconds < 86400) {
-    const hours = Math.floor(diffInSeconds / 3600);
-    return `${hours}h ago`;
-  } else {
-    const days = Math.floor(diffInSeconds / 86400);
-    return `${days}d ago`;
-  }
-};
-
 export default function DashboardScreen() {
   const router = useRouter();
   const bookings = useBookingStore((state) => state.bookings);
@@ -64,11 +45,6 @@ export default function DashboardScreen() {
 
   // Check if user is new (no data)
   const isNewUser = bookings.length === 0 && payments.length === 0 && pitches.length === 0;
-
-  // If it's a new user, show the blank dashboard
-  if (isNewUser) {
-    return <BlankDashboardScreen />;
-  }
 
   // Combine bookings and payments into a single recent activity feed
   const recentActivity = React.useMemo(() => {
@@ -174,155 +150,151 @@ export default function DashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FF88" />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <ThemedText type="title" style={styles.headerTitle}>Dashboard</ThemedText>
-            <ThemedText style={styles.headerSubtitle}>Welcome back!</ThemedText>
-          </View>
-          <TouchableOpacity style={styles.notificationButton}>
-            <IconSymbol name="bell.fill" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <Card style={[styles.statCard, styles.wideStatCard]}>
-            <CardContent style={styles.statCardContent}>
-              <Text style={styles.statValue}>₦{totalEarnings.toFixed(2)}</Text>
-              <Text style={styles.statLabel}>Total Earnings</Text>
-              <View style={styles.trendContainer}>
-                <IconSymbol name="arrow.up" size={12} color="#00FF88" />
-                <Text style={styles.trendText}>12% from last month</Text>
-              </View>
-            </CardContent>
-          </Card>
-
-          <Card style={styles.statCard}>
-            <CardContent style={styles.statCardContent}>
-              <Text style={styles.statValue}>{bookingsToday}</Text>
-              <Text style={styles.statLabel}>Bookings Today</Text>
-              <View style={styles.trendContainer}>
-                <IconSymbol name="arrow.down" size={12} color="#FF4444" />
-                <Text style={styles.trendText}>2% from yesterday</Text>
-              </View>
-            </CardContent>
-          </Card>
-
-          <Card style={styles.statCard}>
-            <CardContent style={styles.statCardContent}>
-              <Text style={styles.statValue}>{pitchStatus}</Text>
-              <Text style={styles.statLabel}>Pitch Status</Text>
-              <View style={styles.statusIndicatorContainer}>
-                <View style={[
-                  styles.statusIndicator,
-                  pitchStatus === 'Open' ? styles.statusOpen : styles.statusClosed
-                ]} />
-                <Text style={styles.statusText}>{openPitches} pitches open</Text>
-              </View>
-            </CardContent>
-          </Card>
-        </View>
-
-        {/* Earnings Chart */}
-        <Card style={styles.sectionCard}>
-          <CardContent style={styles.sectionCardContent}>
-            <Text style={styles.sectionTitle}>Weekly Earnings</Text>
-            <Text style={styles.sectionSubtitle}>Last 7 days revenue</Text>
-            <BarChart data={chartData} />
-          </CardContent>
-        </Card>
-
-        {/* Next Match */}
-        {nextMatch && (
-          <Card style={styles.sectionCard}>
-            <CardContent style={styles.sectionCardContent}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionHeaderLeft}>
-                  <IconSymbol name="calendar" size={20} color="#00FF88" />
-                  <View>
-                    <Text style={styles.nextMatchTitle}>Next Upcoming Match</Text>
-                    <Text style={styles.nextMatchDetails}>
-                      {new Date(nextMatch.bookingDate).toLocaleDateString()} at {nextMatch.startTime}
-                    </Text>
-                    <Text style={styles.nextMatchPitch}>Pitch #{nextMatch.pitchId}</Text>
-                  </View>
-                </View>
-              </View>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Quick Actions */}
-        <Card style={styles.sectionCard}>
-          <CardContent style={styles.sectionCardContent}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            
-            <View style={styles.quickActionsContainer}>
-              <TouchableOpacity 
-                style={styles.quickActionCard}
-                onPress={() => router.push('/bookings/new')}
-              >
-                <View style={[styles.quickActionIconContainer, { backgroundColor: 'rgba(0, 255, 136, 0.2)' }]}>
-                  <IconSymbol name="calendar.badge.plus" size={32} color="#00FF88" />
-                </View>
-                <Text style={styles.quickActionText}>Add Booking</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.quickActionCard}
-                onPress={() => router.push('/pitches')}
-              >
-                <View style={styles.quickActionIconContainer}>
-                  <IconSymbol name="sportscourt.fill" size={24} color="#00FF88" />
-                </View>
-                <Text style={styles.quickActionText}>Manage Pitches</Text>
-              </TouchableOpacity>
+        {isNewUser ? (
+          // Blank Dashboard Content (inlined to avoid hook count mismatch)
+          <>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Dashboard</Text>
+              <Text style={styles.headerSubtitle}>Welcome to PitchLink!</Text>
             </View>
-          </CardContent>
-        </Card>
 
-        {/* Recent Activity */}
-        <Card style={styles.sectionCard}>
-          <CardContent style={styles.sectionCardContent}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            
-            <View style={styles.activityList}>
-              {recentActivity.map(activity => (
+            {/* Welcome Message */}
+            <View style={styles.welcomeContainer}>
+              <Text style={styles.welcomeText}>Welcome to your PitchLink dashboard</Text>
+              <Text style={styles.welcomeSubtext}>
+                Get started by adding your first pitch, booking, or payment.
+              </Text>
+            </View>
+
+            {/* Stats Cards - All Zero */}
+            <View style={styles.statsContainer}>
+              <Card style={[styles.statCard, styles.wideStatCard]}>
+                <CardContent style={styles.statCardContent}>
+                  <Text style={styles.statValue}>₦0.00</Text>
+                  <Text style={styles.statLabel}>Total Earnings</Text>
+                </CardContent>
+              </Card>
+
+              <Card style={styles.statCard}>
+                <CardContent style={styles.statCardContent}>
+                  <Text style={styles.statValue}>0</Text>
+                  <Text style={styles.statLabel}>Bookings Today</Text>
+                </CardContent>
+              </Card>
+
+              <Card style={styles.statCard}>
+                <CardContent style={styles.statCardContent}>
+                  <Text style={styles.statValue}>Closed</Text>
+                  <Text style={styles.statLabel}>Pitch Status</Text>
+                  <View style={styles.statusIndicatorContainer}>
+                    <View style={[styles.statusIndicator, styles.statusClosed]} />
+                    <Text style={styles.statusText}>0 pitches open</Text>
+                  </View>
+                </CardContent>
+              </Card>
+            </View>
+
+            {/* Quick Actions */}
+            <Card style={styles.sectionCard}>
+              <CardContent style={styles.sectionCardContent}>
+                <Text style={styles.sectionTitle}>Get Started</Text>
+                <Text style={styles.sectionSubtitle}>
+                  Begin managing your football pitches by adding your first pitch.
+                </Text>
+                
                 <TouchableOpacity 
-                  key={activity.id} 
-                  style={styles.activityItem}
-                  onPress={activity.onPress}
+                  style={styles.actionButton}
+                  onPress={() => router.push('/pitches/add')}
                 >
-                  <View style={styles.activityIconContainer}>
-                    <IconSymbol 
-                      name={activity.type === 'payment' ? 'creditcard.fill' : 'calendar.badge.clock'} 
-                      size={16} 
-                      color="#00FF88" 
-                    />
-                  </View>
-                  <View style={styles.activityDetails}>
-                    <Text style={styles.activityTitle}>{activity.title}</Text>
-                    <Text style={styles.activityAmount}>
-                      {activity.type === 'payment' 
-                        ? `₦${activity.amount.toFixed(2)}` 
-                        : `Pitch #${activity.pitchId}`}
-                    </Text>
-                  </View>
-                  <Text style={styles.activityTime}>
-                    {formatTimeAgo(activity.timestamp)}
-                  </Text>
+                  <Text style={styles.actionButtonText}>Add Your First Pitch</Text>
                 </TouchableOpacity>
-              ))}
-              
-              {recentActivity.length === 0 && (
-                <View style={styles.emptyActivity}>
-                  <Text style={styles.emptyActivityText}>No recent activity</Text>
-                </View>
-              )}
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          // Regular Dashboard Content
+          <>
+            {/* Header */}
+            <View style={styles.header}>
+              <View>
+                <ThemedText type="title" style={styles.headerTitle}>Dashboard</ThemedText>
+                <ThemedText style={styles.headerSubtitle}>Welcome back!</ThemedText>
+              </View>
+              <TouchableOpacity style={styles.notificationButton}>
+                <IconSymbol name="bell.fill" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
-          </CardContent>
-        </Card>
+
+            {/* Stats Cards */}
+            <View style={styles.statsContainer}>
+              <Card style={[styles.statCard, styles.wideStatCard]}>
+                <CardContent style={styles.statCardContent}>
+                  <Text style={styles.statValue}>₦{totalEarnings.toFixed(2)}</Text>
+                  <Text style={styles.statLabel}>Total Earnings</Text>
+                  <View style={styles.trendContainer}>
+                    <IconSymbol name="arrow.up" size={12} color="#00FF88" />
+                    <Text style={styles.trendText}>12% from last month</Text>
+                  </View>
+                </CardContent>
+              </Card>
+
+              <Card style={styles.statCard}>
+                <CardContent style={styles.statCardContent}>
+                  <Text style={styles.statValue}>{bookingsToday}</Text>
+                  <Text style={styles.statLabel}>Bookings Today</Text>
+                  <View style={styles.trendContainer}>
+                    <IconSymbol name="arrow.down" size={12} color="#FF4444" />
+                    <Text style={styles.trendText}>2% from yesterday</Text>
+                  </View>
+                </CardContent>
+              </Card>
+
+              <Card style={styles.statCard}>
+                <CardContent style={styles.statCardContent}>
+                  <Text style={styles.statValue}>{pitchStatus}</Text>
+                  <Text style={styles.statLabel}>Pitch Status</Text>
+                  <View style={styles.statusIndicatorContainer}>
+                    <View style={[
+                      styles.statusIndicator,
+                      pitchStatus === 'Open' ? styles.statusOpen : styles.statusClosed
+                    ]} />
+                    <Text style={styles.statusText}>{openPitches} pitches open</Text>
+                  </View>
+                </CardContent>
+              </Card>
+            </View>
+
+            {/* Earnings Chart */}
+            <Card style={styles.sectionCard}>
+              <CardContent style={styles.sectionCardContent}>
+                <Text style={styles.sectionTitle}>Weekly Earnings</Text>
+                <Text style={styles.sectionSubtitle}>Last 7 days revenue</Text>
+                <BarChartComponent data={chartData} />
+              </CardContent>
+            </Card>
+
+            {/* Next Match */}
+            {nextMatch && (
+              <Card style={styles.sectionCard}>
+                <CardContent style={styles.sectionCardContent}>
+                  <View style={styles.sectionHeader}>
+                    <View style={styles.sectionHeaderLeft}>
+                      <IconSymbol name="calendar" size={20} color="#00FF88" />
+                      <View>
+                        <Text style={styles.nextMatchTitle}>Next Upcoming Match</Text>
+                        <Text style={styles.nextMatchDetails}>
+                          {new Date(nextMatch.bookingDate).toLocaleDateString()} at {nextMatch.startTime}
+                        </Text>
+                        <Text style={styles.nextMatchPitch}>Pitch #{nextMatch.pitchId}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -341,7 +313,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    paddingBottom: 10,
+    paddingTop: 10,
   },
   headerTitle: {
     fontSize: 28,
@@ -351,26 +323,10 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: '#888888',
+    marginTop: 4,
   },
   notificationButton: {
-    position: 'relative',
-    padding: 10,
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: '#FF4444',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notificationBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
+    padding: 8,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -438,213 +394,101 @@ const styles = StyleSheet.create({
   sectionCardContent: {
     padding: 16,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 14,
     color: '#888888',
     marginBottom: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   nextMatchTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 4,
   },
   nextMatchDetails: {
     fontSize: 14,
     color: '#888888',
-    marginBottom: 2,
+    marginTop: 4,
   },
   nextMatchPitch: {
     fontSize: 14,
     color: '#00FF88',
-  },
-  pitchesList: {
-    gap: 12,
-  },
-  pitchItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  pitchInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  pitchIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 255, 136, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pitchDetails: {
-    gap: 2,
-  },
-  pitchName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  pitchPrice: {
-    fontSize: 14,
-    color: '#888888',
-  },
-  pitchStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  pitchStatusAvailable: {
-    backgroundColor: 'rgba(0, 255, 136, 0.2)',
-  },
-  pitchStatusBooked: {
-    backgroundColor: 'rgba(255, 68, 68, 0.2)',
-  },
-  pitchStatusMaintenance: {
-    backgroundColor: 'rgba(255, 165, 0, 0.2)',
-  },
-  pitchStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textTransform: 'capitalize',
-  },
-  emptyPitches: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  emptyPitchesText: {
-    fontSize: 16,
-    color: '#888888',
-    marginBottom: 16,
-  },
-  addPitchButton: {
-    backgroundColor: '#00FF88',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  addPitchButtonText: {
-    color: '#000000',
-    fontWeight: '600',
-  },
-  activityList: {
-    gap: 20,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-  },
-  activityIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 255, 136, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  activityDetails: {
-    flex: 1,
-    gap: 2,
-  },
-  activityTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  activityAmount: {
-    fontSize: 12,
-    color: '#888888',
-  },
-  activityTime: {
-    fontSize: 12,
-    color: '#888888',
-  },
-  emptyActivity: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  emptyActivityText: {
-    fontSize: 16,
-    color: '#888888',
-  },
-  quickActionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  quickActionCard: {
-    flex: 1,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  quickActionIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 255, 136, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quickActionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    marginTop: 2,
   },
   chartContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    gap: 4,
-    height: 120,
+    height: 100,
+    marginTop: 16,
   },
   chartBarItem: {
     alignItems: 'center',
-    gap: 4,
+    flex: 1,
   },
   chartBarValueContainer: {
-    width: '100%',
-    alignItems: 'center',
+    marginBottom: 4,
   },
   chartBarValue: {
     fontSize: 12,
-    color: '#888888',
+    color: '#FFFFFF',
   },
   chartBarContainer: {
-    width: '100%',
-    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+    flex: 1,
+    justifyContent: 'flex-end',
+    width: 20,
   },
   chartBar: {
-    width: '100%',
     backgroundColor: '#00FF88',
+    width: '100%',
+    borderRadius: 2,
   },
   chartBarLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#888888',
+    marginTop: 4,
+  },
+  welcomeContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  welcomeText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  welcomeSubtext: {
+    fontSize: 16,
+    color: '#888888',
+    textAlign: 'center',
+  },
+  actionButton: {
+    backgroundColor: '#00FF88',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  actionButtonText: {
+    color: '#000000',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
