@@ -29,7 +29,7 @@ export default function AddPitchScreen() {
   const [nightPricing, setNightPricing] = useState('');
   
   // Availability
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [selectedDays, setSelectedDays] = useState<string[]>(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']);
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   
   // Facilities
@@ -58,19 +58,30 @@ export default function AddPitchScreen() {
       if (savedSettings) {
         const settings = JSON.parse(savedSettings);
         setBusinessStatus(settings.businessStatus || 'not_started');
-        
+        // NOTE: Removed business verification blocking for development
+        // In production, uncomment the lines below:
+        /*
         // If business is not approved, show blocking modal
         if (settings.businessStatus !== 'approved') {
           showVerificationBlockingModal();
         }
+        */
       } else {
+        // NOTE: Removed business verification blocking for development
+        // In production, uncomment the lines below:
+        /*
         // If no business settings found, show blocking modal
         showVerificationBlockingModal();
+        */
       }
     } catch (error) {
       console.log('Error loading business settings:', error);
+      // NOTE: Removed business verification blocking for development
+      // In production, uncomment the lines below:
+      /*
       // If there's an error loading settings, still show blocking modal for safety
       showVerificationBlockingModal();
+      */
     }
   };
 
@@ -109,11 +120,15 @@ export default function AddPitchScreen() {
 
   // Handle form submission
   const handleSubmit = () => {
+    // NOTE: Removed business verification check for development
+    // In production, uncomment the lines below:
+    /*
     // Double-check business verification status
     if (businessStatus !== 'approved') {
       showVerificationBlockingModal();
       return;
     }
+    */
     
     if (!name || !description || !location || !pricePerHour) {
       Alert.alert('Error', 'Please fill in all required fields');
@@ -224,6 +239,16 @@ export default function AddPitchScreen() {
     );
   };
 
+  // Select all days
+  const selectAllDays = () => {
+    setSelectedDays([...daysOfWeek]);
+  };
+
+  // Deselect all days
+  const deselectAllDays = () => {
+    setSelectedDays([]);
+  };
+
   // Toggle facility selection
   const toggleFacilitySelection = (facility: Facility) => {
     setSelectedFacilities(prev => 
@@ -243,6 +268,24 @@ export default function AddPitchScreen() {
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Select Available Days</Text>
+          
+          {/* Select All Button */}
+          <View style={styles.selectAllContainer}>
+            <TouchableOpacity
+              style={styles.selectAllButton}
+              onPress={selectAllDays}
+            >
+              <Text style={styles.selectAllButtonText}>Select All</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.deselectAllButton}
+              onPress={deselectAllDays}
+            >
+              <Text style={styles.deselectAllButtonText}>Deselect All</Text>
+            </TouchableOpacity>
+          </View>
+          
           <ScrollView>
             {daysOfWeek.map(day => (
               <TouchableOpacity
@@ -875,5 +918,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 16,
+  },
+  selectAllContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  selectAllButton: {
+    padding: 10,
+    backgroundColor: '#00FF88',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  selectAllButtonText: {
+    color: '#000000',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  deselectAllButton: {
+    padding: 10,
+    backgroundColor: '#FF4444',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  deselectAllButtonText: {
+    color: '#000000',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

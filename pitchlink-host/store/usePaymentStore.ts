@@ -7,17 +7,17 @@ export interface Payment {
   bookingId: string;
   amount: number;
   status: 'pending' | 'paid' | 'failed' | 'refunded';
-  paymentMethod: 'cash' | 'card' | 'transfer';
+  paymentMethod: 'card' | 'transfer' | 'cash';
   transactionId?: string;
   createdAt: Date;
   updatedAt: Date;
-  // Added source to distinguish between player app and manual bookings
+  // Add source field to distinguish between player app and manual payments
   source: 'player-app' | 'manual';
 }
 
 interface PaymentState {
   payments: Payment[];
-  addPayment: (payment: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addPayment: (paymentData: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updatePayment: (id: string, updates: Partial<Payment>) => void;
   deletePayment: (id: string) => void;
   loadPayments: () => Promise<void>;
@@ -32,7 +32,7 @@ interface PaymentState {
 }
 
 export const usePaymentStore = create<PaymentState>()((set, get) => ({
-  payments: [],
+  payments: [], // Always initialize with empty array
   
   addPayment: (paymentData: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newPayment: Payment = {
@@ -83,8 +83,10 @@ export const usePaymentStore = create<PaymentState>()((set, get) => ({
         }));
         set({ payments: parsedPayments });
       }
+      // If no payments found, state remains with empty array (already initialized)
     } catch (error) {
       console.log('Error loading payments:', error);
+      // State remains with empty array (already initialized)
     }
   },
   

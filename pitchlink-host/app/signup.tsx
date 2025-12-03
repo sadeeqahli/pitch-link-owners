@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Alert, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Alert, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera } from 'lucide-react-native';
 
 // African countries and states data
 const AFRICAN_COUNTRIES = [
@@ -98,7 +97,6 @@ export default function SignupScreen() {
   const [state, setState] = useState('');
   const [numberOfPitches, setNumberOfPitches] = useState('');
   const [ownerType, setOwnerType] = useState('');
-  const [logo, setLogo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [showStateDropdown, setShowStateDropdown] = useState(false);
@@ -163,7 +161,7 @@ export default function SignupScreen() {
       
       if (success) {
         Alert.alert('Success', 'Account created successfully', [
-          { text: 'OK', onPress: () => router.replace('/(tabs)') }
+          { text: 'OK', onPress: () => router.push('/verification') }
         ]);
       } else {
         Alert.alert('Error', 'Signup failed. Please try again.');
@@ -175,31 +173,14 @@ export default function SignupScreen() {
     }
   };
 
-  const pickImage = async () => {
-    // Request permission
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission required', 'Permission to access camera roll is required!');
-      return;
-    }
-    
-    // Launch image picker
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
-    
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setLogo(result.assets[0].uri);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Logo at the top */}
+        <View style={styles.logoContainerTop}>
+          <Text style={styles.logoText}>PitchLink</Text>
+        </View>
+        
         <View style={styles.content}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Join PitchLink to manage your pitches</Text>
@@ -305,19 +286,6 @@ export default function SignupScreen() {
               value={ownerType}
               onChangeText={setOwnerType}
             />
-            
-            <Text style={styles.sectionTitle}>Logo (Optional)</Text>
-            
-            <TouchableOpacity style={styles.logoContainer} onPress={pickImage}>
-              {logo ? (
-                <Image source={{ uri: logo }} style={styles.logoImage} />
-              ) : (
-                <View style={styles.logoPlaceholder}>
-                  <Camera color="#888888" size={32} />
-                  <Text style={styles.logoText}>Upload Logo</Text>
-                </View>
-              )}
-            </TouchableOpacity>
             
             <Text style={styles.sectionTitle}>Account Security</Text>
             
@@ -428,28 +396,15 @@ const styles = StyleSheet.create({
   dropdownItem: {
     padding: 12,
   },
-  logoContainer: {
+  logoContainerTop: {
     height: 120,
-    borderWidth: 1,
-    borderColor: '#333333',
-    borderRadius: 8,
-    backgroundColor: '#1E1E1E',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  logoImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
-  },
-  logoPlaceholder: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   logoText: {
-    color: '#888888',
-    marginTop: 10,
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#00FF88',
   },
   signupButton: {
     height: 50,

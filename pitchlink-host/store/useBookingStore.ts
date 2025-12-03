@@ -1,31 +1,32 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Pitch } from './usePitchStore';
 import { usePaymentStore } from './usePaymentStore';
 
 export interface Booking {
   id: string;
-  pitchId: string;
   customerName: string;
-  customerEmail: string;
+  customerEmail?: string; // Make it optional to avoid breaking changes
   customerPhone: string;
+  pitchId: string;
   bookingDate: Date;
-  startTime: string; // HH:MM format
-  endTime: string; // HH:MM format
-  status: 'confirmed' | 'ongoing' | 'completed' | 'cancelled';
+  startTime: string;
+  endTime: string;
+  duration: number; // Duration in hours
   totalPrice: number;
-  amountPaid: number; // Track partial payments
-  paymentType: 'full' | 'half' | 'later' | 'offline' | 'transfer';
-  duration: number; // in hours
+  status: 'confirmed' | 'ongoing' | 'completed' | 'cancelled';
+  notes?: string;
   createdAt: Date;
   updatedAt: Date;
-  // Added source to distinguish between player app and manual bookings
+  // New fields for payment tracking
+  amountPaid: number;
+  paymentType: 'full' | 'partial' | 'later';
+  // New field for booking source
   source: 'player-app' | 'manual';
 }
 
 interface BookingState {
   bookings: Booking[];
-  addBooking: (booking: Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addBooking: (bookingData: Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateBooking: (id: string, updates: Partial<Booking>) => void;
   deleteBooking: (id: string) => void;
   cancelBooking: (id: string) => void; // Add cancelBooking to the interface
@@ -43,7 +44,7 @@ interface BookingState {
 }
 
 export const useBookingStore = create<BookingState>()((set, get) => ({
-  bookings: [],
+  bookings: [], // Always initialize with empty array
   
   addBooking: (bookingData: Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>) => {
     // Ensure correct initial status based on current time
@@ -56,7 +57,7 @@ export const useBookingStore = create<BookingState>()((set, get) => ({
     bookingEnd.setHours(bookingEnd.getHours() + (bookingData.duration || 1));
     
     // Set initial status based on time
-    let initialStatus: 'confirmed' | 'ongoing' | 'completed' = 'confirmed';
+    let initialStatus: 'confirmed' | 'ongoing' | 'completed' | 'cancelled' = 'confirmed';
     
     if (bookingDate > now) {
       // Future booking
@@ -72,7 +73,7 @@ export const useBookingStore = create<BookingState>()((set, get) => ({
     const newBooking: Booking = {
       id: Date.now().toString(),
       ...bookingData,
-      status: initialStatus,
+      status: initialStatus as 'confirmed' | 'ongoing' | 'completed' | 'cancelled',
       source: bookingData.source || 'manual', // Default to manual if not specified
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -126,24 +127,42 @@ export const useBookingStore = create<BookingState>()((set, get) => ({
     try {
       const storedBookings = await AsyncStorage.getItem('bookings');
       if (storedBookings) {
-        const parsedBookings = JSON.parse(storedBookings).map((booking: any) => ({
-          ...booking,
-          bookingDate: new Date(booking.bookingDate),
-          createdAt: new Date(booking.createdAt),
-          updatedAt: new Date(booking.updatedAt),
-          // Set default values for new fields
-          amountPaid: booking.amountPaid || 0,
-          paymentType: booking.paymentType || 'later',
-          duration: booking.duration || 1,
-          // Convert pending status to confirmed for backward compatibility
-          status: booking.status === 'pending' ? 'confirmed' : booking.status,
-          // Set default source if not present
-          source: booking.source || 'manual',
-        }));
+        const parsedBookings: Booking[] = JSON.parse(storedBookings).map((booking: any) => {
+          // Convert status with explicit typing
+          let status: 'confirmed' | 'ongoing' | 'completed' | 'cancelled' = 'confirmed';
+          if (booking.status === 'pending') {
+            status = 'confirmed';
+          } else if (booking.status === 'ongoing') {
+            status = 'ongoing';
+          } else if (booking.status === 'completed') {
+            status = 'completed';
+          } else if (booking.status === 'cancelled') {
+            status = 'cancelled';
+          } else {
+            status = 'confirmed'; // default fallback
+          }
+          
+          return {
+            ...booking,
+            bookingDate: new Date(booking.bookingDate),
+            createdAt: new Date(booking.createdAt),
+            updatedAt: new Date(booking.updatedAt),
+            // Set default values for new fields
+            amountPaid: booking.amountPaid || 0,
+            paymentType: booking.paymentType || 'later',
+            duration: booking.duration || 1,
+            // Use explicitly typed status
+            status,
+            // Set default source if not present
+            source: booking.source || 'manual',
+          };
+        });
         set({ bookings: parsedBookings });
       }
+      // If no bookings found, state remains with empty array (already initialized)
     } catch (error) {
       console.log('Error loading bookings:', error);
+      // State remains with empty array (already initialized)
     }
   },
   
@@ -227,12 +246,12 @@ export const useBookingStore = create<BookingState>()((set, get) => ({
       );
     });
   },
-
-  // Cancel a booking
+  
+  // Add cancelBooking method
   cancelBooking: (id: string) => {
     set((state) => {
       const updatedBookings = state.bookings.map((booking) => 
-        booking.id === id ? { ...booking, status: 'cancelled' as const, updatedAt: new Date() } : booking
+        booking.id === id ? { ...booking, status: 'cancelled' as 'cancelled', updatedAt: new Date() } : booking
       );
       // Save to AsyncStorage
       AsyncStorage.setItem('bookings', JSON.stringify(updatedBookings));

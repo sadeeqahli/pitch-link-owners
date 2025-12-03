@@ -50,7 +50,7 @@ const NIGERIAN_BANKS = [
 // Required documents for verification
 const REQUIRED_DOCUMENTS = [
   { id: 'business_license', name: 'Business License', description: 'Valid business registration certificate' },
-  { id: 'id_card', name: 'Owner ID Card', description: 'Government issued identification' },
+  { id: 'id_card', name: 'NIN National Identification Number', description: 'Government issued identification' },
 ];
 
 // Define alert button type
@@ -208,6 +208,48 @@ export default function BusinessSettingsScreen() {
         ...prev,
         [documentId]: result.assets[0].uri
       }));
+    }
+  };
+
+  const pickBusinessLogo = async () => {
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    // Launch image picker
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1], // Square aspect ratio for logo
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setLogo(result.assets[0].uri);
+    }
+  };
+
+  const takeBusinessLogo = async () => {
+    // Request permission
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Sorry, we need camera permissions to make this work!');
+      return;
+    }
+
+    // Launch camera
+    let result = await ImagePicker.launchCameraAsync({
+      cameraType: ImagePicker.CameraType.back,
+      allowsEditing: true,
+      aspect: [1, 1], // Square aspect ratio for logo
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setLogo(result.assets[0].uri);
     }
   };
 
@@ -471,10 +513,57 @@ export default function BusinessSettingsScreen() {
             
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Business Logo (Optional)</Text>
-              <TouchableOpacity style={styles.uploadLogoButton}>
-                <Upload color="#00FF88" size={20} />
-                <Text style={styles.uploadLogoText}>Upload Logo</Text>
-              </TouchableOpacity>
+              {logo ? (
+                <View style={styles.logoPreviewContainer}>
+                  <Image source={{ uri: logo }} style={styles.logoPreview} />
+                  <View style={styles.logoActions}>
+                    <TouchableOpacity 
+                      style={styles.changeLogoButton}
+                      onPress={() => {
+                        const buttons: AlertButton[] = [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Take Photo', onPress: takeBusinessLogo },
+                          { text: 'Choose from Library', onPress: pickBusinessLogo }
+                        ];
+                        
+                        Alert.alert(
+                          'Change Business Logo',
+                          'Select a new logo',
+                          buttons
+                        );
+                      }}
+                    >
+                      <Text style={styles.changeLogoText}>Change Logo</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.removeLogoButton}
+                      onPress={() => setLogo(null)}
+                    >
+                      <Text style={styles.removeLogoText}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.uploadLogoButton}
+                  onPress={() => {
+                    const buttons: AlertButton[] = [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Take Photo', onPress: takeBusinessLogo },
+                      { text: 'Choose from Library', onPress: pickBusinessLogo }
+                    ];
+                    
+                    Alert.alert(
+                      'Upload Business Logo',
+                      'Select a logo for your business',
+                      buttons
+                    );
+                  }}
+                >
+                  <Upload color="#00FF88" size={20} />
+                  <Text style={styles.uploadLogoText}>Upload Logo</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
           </CardContent>
@@ -884,9 +973,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     color: '#FFFFFF',
     fontSize: 16,
-  },
-  inputWithIcon: {
-    paddingLeft: 48,
+    paddingLeft: 48, // Add padding to accommodate the icon
   },
   inputIcon: {
     position: 'absolute',
@@ -1027,6 +1114,46 @@ const styles = StyleSheet.create({
     borderColor: '#333333',
   },
   changeLocationText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  logoPreviewContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logoPreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 16,
+  },
+  logoActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  changeLogoButton: {
+    flex: 1,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  changeLogoText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  removeLogoButton: {
+    flex: 1,
+    backgroundColor: '#FF4444',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  removeLogoText: {
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 16,

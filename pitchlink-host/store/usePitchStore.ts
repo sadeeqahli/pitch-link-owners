@@ -42,7 +42,7 @@ interface PitchState {
 }
 
 export const usePitchStore = create<PitchState>()((set, get) => ({
-  pitches: [],
+  pitches: [], // Always initialize with empty array
   
   addPitch: (pitchData: Omit<Pitch, 'id' | 'createdAt' | 'updatedAt'>) => {
     const newPitch: Pitch = {
@@ -99,8 +99,10 @@ export const usePitchStore = create<PitchState>()((set, get) => ({
         }));
         set({ pitches: parsedPitches });
       }
+      // If no pitches found, state remains with empty array (already initialized)
     } catch (error) {
       console.log('Error loading pitches:', error);
+      // State remains with empty array (already initialized)
     }
   },
   

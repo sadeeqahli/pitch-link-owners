@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearUserData } from '@/utils/clearUserData';
 
 interface User {
   id: string;
@@ -45,7 +46,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
           const user = JSON.parse(storedUser);
           
           // Normalize emails for comparison (trim whitespace and convert to lowercase)
-          const normalizedStoredEmail = user.email.trim().toLowerCase();
+          const normalizedStoredEmail = user.email?.trim().toLowerCase() || '';
           const normalizedInputEmail = email.trim().toLowerCase();
           
           // In a real app, you would validate the password here
@@ -68,7 +69,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
     }
     return false;
   },
-  
+
   logout: () => {
     set({ user: null, isAuthenticated: false });
     AsyncStorage.removeItem('user');
@@ -79,19 +80,22 @@ export const useAuthStore = create<AuthState>()((set) => ({
     
     // Mock registration - in a real app, this would be an API call
     if (name && email && phone && password && location && businessName && numberOfPitches && ownerType) {
-      // Normalize email before storing
+      // Normalize email before storing (but keep original case for display)
       const normalizedEmail = email.trim().toLowerCase();
       
       const user = {
         id: Date.now().toString(),
         name,
-        email: normalizedEmail,
+        email: normalizedEmail, // Store normalized email for comparison
         phone,
         location,
         businessName,
         numberOfPitches,
         ownerType,
       };
+      
+      // Clear all existing data for the new user to ensure a clean start
+      await clearUserData();
       
       set({ user, isAuthenticated: true });
       await AsyncStorage.setItem('user', JSON.stringify(user));
@@ -104,10 +108,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
     try {
       const storedUser = await AsyncStorage.getItem('user');
       if (storedUser) {
-        set({ user: JSON.parse(storedUser), isAuthenticated: true });
+        const userData = JSON.parse(storedUser);
+        set({ user: userData, isAuthenticated: true });
       }
     } catch (error) {
       console.log('Error loading stored auth:', error);
     }
   },
+
 }));

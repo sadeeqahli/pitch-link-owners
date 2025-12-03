@@ -8,6 +8,7 @@ import { usePitchStore } from '@/store/usePitchStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/themed-text';
+import BlankDashboardScreen from './blank';
 
 // Simple Bar Chart Component
 const BarChart = ({ data }: { data: { label: string; value: number }[] }) => {
@@ -60,6 +61,14 @@ export default function DashboardScreen() {
   const payments = usePaymentStore((state) => state.payments);
   const pitches = usePitchStore((state) => state.pitches);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Check if user is new (no data)
+  const isNewUser = bookings.length === 0 && payments.length === 0 && pitches.length === 0;
+
+  // If it's a new user, show the blank dashboard
+  if (isNewUser) {
+    return <BlankDashboardScreen />;
+  }
 
   // Combine bookings and payments into a single recent activity feed
   const recentActivity = React.useMemo(() => {

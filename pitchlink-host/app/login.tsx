@@ -57,7 +57,7 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = () => {
-    router.push('/verification');
+    router.push('/forgot-password');
   };
 
   const handleSignUp = () => {
@@ -67,6 +67,11 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Logo at the top */}
+        <View style={styles.logoContainer}>
+          <Text style={styles.logoText}>PitchLink</Text>
+        </View>
+        
         <View style={styles.content}>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue managing your pitches</Text>
@@ -174,10 +179,21 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    backgroundColor: '#0A0A0A',
+  },
+  logoText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#00FF88',
+  },
   content: {
     flex: 1,
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 0,
   },
   title: {
     fontSize: 32,

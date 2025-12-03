@@ -29,22 +29,6 @@ export default function PitchesScreen() {
     usePitchStore.getState().loadPitches();
   }, []);
 
-  // Debug log to see what pitches are loaded
-  useEffect(() => {
-    console.log('Loaded pitches:', pitches);
-    // Log images for each pitch
-    pitches.forEach(pitch => {
-      console.log(`Pitch ${pitch.id}:`, {
-        name: pitch.name,
-        hasImages: !!pitch.images,
-        imagesCount: pitch.images ? pitch.images.length : 0,
-        images: pitch.images,
-        hasImageUrl: !!pitch.imageUrl,
-        imageUrl: pitch.imageUrl
-      });
-    });
-  }, [pitches]);
-
   const loadBusinessStatus = async () => {
     try {
       const savedSettings = await AsyncStorage.getItem('businessSettings');
@@ -58,11 +42,15 @@ export default function PitchesScreen() {
   };
 
   const handleAddPitch = () => {
+    // NOTE: Removed business verification check for development
+    // In production, uncomment the lines below:
+    /*
     // Check business verification status before allowing to add pitch
     if (businessStatus !== 'approved') {
       showVerificationBlockingModal();
       return;
     }
+    */
     
     router.push('/pitches/add');
   };
@@ -256,13 +244,11 @@ export default function PitchesScreen() {
                         scrollEventThrottle={16}
                       >
                         {pitch.images.map((image, index) => (
-                          <View key={index} style={{ width: Dimensions.get('window').width - 64, height: '100%' }}>
+                          <View key={index} style={{ width: Dimensions.get('window').width - 64, height: 200 }}>
                             <Image 
                               source={{ uri: image }} 
-                              style={styles.pitchImage} 
+                              style={{ width: '100%', height: '100%' }} 
                               resizeMode="cover"
-                              onError={(error) => console.log('Image load error for pitch', pitch.id, 'image', image, ':', error)}
-                              onLoad={() => console.log('Image loaded successfully for pitch', pitch.id, 'image', image)}
                             />
                           </View>
                         ))}
@@ -478,16 +464,14 @@ const styles = StyleSheet.create({
   },
   pitchImageGallery: {
     width: '100%',
-    height: '100%',
   },
-  pitchImageWrapper: {
-    height: '100%',
-  },
+
   pitchImage: {
     width: '100%',
     height: '100%',
     borderRadius: 8,
   },
+
   indicatorContainer: {
     flexDirection: 'row',
     justifyContent: 'center',

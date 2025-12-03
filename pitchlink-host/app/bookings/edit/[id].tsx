@@ -10,23 +10,21 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 export default function EditBookingScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const bookings = useBookingStore((state) => state.bookings);
-  const pitches = usePitchStore((state) => state.pitches);
-  const updateBooking = useBookingStore((state) => state.updateBooking);
-  
+  const { bookings, updateBooking } = useBookingStore();
+  const { pitches } = usePitchStore();
   const booking = bookings.find((b) => b.id === id);
   
   // Form state
-  const [selectedPitchId, setSelectedPitchId] = useState('');
+  const [selectedPitchId, setSelectedPitchId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState('09:00');
-  const [duration, setDuration] = useState(1);
+  const [duration, setDuration] = useState(1); // in hours
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [paymentType, setPaymentType] = useState<'full' | 'half' | 'later' | 'offline' | 'transfer'>('later');
+  const [paymentType, setPaymentType] = useState<'full' | 'partial' | 'later'>('later');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Initialize form with booking data
   useEffect(() => {
     if (booking) {
@@ -35,7 +33,7 @@ export default function EditBookingScreen() {
       setSelectedTime(booking.startTime);
       setDuration(booking.duration);
       setCustomerName(booking.customerName);
-      setCustomerEmail(booking.customerEmail);
+      setCustomerEmail(booking.customerEmail || ''); // Handle optional customerEmail
       setCustomerPhone(booking.customerPhone);
       setPaymentType(booking.paymentType);
     }
@@ -308,10 +306,8 @@ export default function EditBookingScreen() {
               <View style={styles.paymentOptions}>
                 {[
                   { id: 'full', label: 'Full Payment', description: 'Complete payment now' },
-                  { id: 'half', label: 'Half Payment', description: '50% deposit now' },
+                  { id: 'partial', label: 'Partial Payment', description: '50% deposit now' },
                   { id: 'later', label: 'Pay Later', description: 'Customer pays at pitch' },
-                  { id: 'offline', label: 'Paid Offline', description: 'Payment collected in person' },
-                  { id: 'transfer', label: 'Transfer Received', description: 'Bank transfer confirmed' }
                 ].map((option) => (
                   <TouchableOpacity
                     key={option.id}

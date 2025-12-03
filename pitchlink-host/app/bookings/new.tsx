@@ -22,7 +22,7 @@ export default function AddBookingScreen() {
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [paymentType, setPaymentType] = useState<'full' | 'half' | 'later' | 'offline' | 'transfer'>('later');
+  const [paymentType, setPaymentType] = useState<'full' | 'partial' | 'later'>('later');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Settings state
@@ -178,12 +178,12 @@ export default function AddBookingScreen() {
       // Calculate price based on duration
       const totalPrice = selectedPitch.pricePerHour * duration;
       const amountPaid = paymentType === 'full' ? totalPrice : 
-                        paymentType === 'half' ? totalPrice / 2 : 0;
+                        paymentType === 'partial' ? totalPrice / 2 : 0;
       
       // Determine initial status based on payment and time
       let initialStatus: 'confirmed' | 'ongoing' | 'completed' | 'cancelled' = 'confirmed';
       
-      if (paymentType === 'offline' || amountPaid > 0) {
+      if (paymentType === 'full' || amountPaid > 0) {
         initialStatus = 'confirmed';
       }
       
@@ -474,7 +474,7 @@ export default function AddBookingScreen() {
               >
                 <Text style={styles.dropdownButtonText}>
                   {paymentType === 'full' && 'Full Payment'}
-                  {paymentType === 'half' && '50% Deposit'}
+                  {paymentType === 'partial' && '50% Deposit'}
                   {paymentType === 'later' && 'Pay After Game'}
                   {!paymentType && 'Select payment method'}
                 </Text>
@@ -499,7 +499,7 @@ export default function AddBookingScreen() {
                     <ScrollView>
                       {[
                         { id: 'later', label: 'Pay After Game', description: 'Customer pays at pitch' },
-                        { id: 'half', label: '50% Deposit', description: '50% deposit now' },
+                        { id: 'partial', label: '50% Deposit', description: '50% deposit now' },
                         { id: 'full', label: 'Full Payment', description: 'Complete payment now' }
                       ].map((option) => (
                         <TouchableOpacity
@@ -510,8 +510,17 @@ export default function AddBookingScreen() {
                             setShowPaymentDropdown(false);
                           }}
                         >
-                          <Text style={styles.modalOptionText}>{option.label}</Text>
-                          <Text style={styles.modalOptionSubtext}>{option.description}</Text>
+                          <View style={styles.paymentOptionContent}>
+                            <Text style={styles.paymentOptionLabel}>
+                              {option.id === 'full' && 'Full Payment'}
+                              {option.id === 'partial' && '50% Deposit'}
+                              {option.id === 'later' && 'Pay at Pitch'}
+                            </Text>
+                            <Text style={styles.paymentOptionDescription}>
+                              {option.description}
+                            </Text>
+                          </View>
+
                         </TouchableOpacity>
                       ))}
                     </ScrollView>

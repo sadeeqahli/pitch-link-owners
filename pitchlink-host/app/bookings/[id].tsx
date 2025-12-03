@@ -199,13 +199,11 @@ export default function BookingDetailScreen() {
                   <Text style={styles.label}>Payment Type:</Text>
                   <Text style={styles.value}>
                     {booking.paymentType === 'full' && 'Full Payment'}
-                    {booking.paymentType === 'half' && 'Half Payment'}
+                    {booking.paymentType === 'partial' && 'Partial Payment'}
                     {booking.paymentType === 'later' && 'Pay Later'}
-                    {booking.paymentType === 'offline' && 'Paid Offline'}
-                    {booking.paymentType === 'transfer' && 'Transfer Received'}
                   </Text>
                 </View>
-                
+
                 <View style={styles.paymentRow}>
                   <Text style={styles.label}>Amount Paid:</Text>
                   <Text style={styles.paidValue}>₦{booking.amountPaid.toFixed(2)}</Text>
@@ -390,14 +388,8 @@ export default function BookingDetailScreen() {
               <Text style={styles.cancelActionButtonText}>Cancel Booking</Text>
             </TouchableOpacity>
           )}
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => {}}
-          >
-            <Text style={styles.actionButtonText}>Message Customer</Text>
-          </TouchableOpacity>
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );

@@ -114,10 +114,10 @@ export default function PitchAnalyticsScreen() {
               scrollEventThrottle={16}
             >
               {pitch.images.map((image, index) => (
-                <View key={index} style={styles.imageContainer}>
+                <View key={index} style={{ width: Dimensions.get('window').width - 32, height: 300 }}>
                   <Image 
                     source={{ uri: image }} 
-                    style={styles.image} 
+                    style={{ width: '100%', height: '100%' }} 
                     resizeMode="cover"
                   />
                 </View>
@@ -521,18 +521,14 @@ const styles = StyleSheet.create({
   },
   imageGallery: {
     width: '100%',
-    height: '100%',
   },
-  imageContainer: {
-    width: Dimensions.get('window').width - 32,
-    height: '100%',
-    padding: 8,
-  },
+
   image: {
     width: '100%',
     height: '100%',
     borderRadius: 8,
   },
+
   indicatorContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
